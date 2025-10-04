@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for backend
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api', 
+  baseURL: 'http://192.168.1.7:5050/api', 
   timeout: 5000,
 });
 
@@ -19,8 +19,8 @@ API.interceptors.request.use(async config => {
 export const login = (email: string, password: string) =>
   API.post('/auth/login', { email, password });
 
-export const register = (name: string, email: string, password: string) =>
-  API.post('/auth/register', { name, email, password });
+export const register = (name: string, email: string, password: string,role:string) =>
+  API.post('/auth/register', { name, email, password ,role});
 
 // Event APIs
 export const fetchEvents = () => API.get('/events');
