@@ -13,7 +13,7 @@ import API from '../../api';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Ionicons';
 
-export const fetchMyOrders = () => API.get('/orders/my-orders');
+export const fetchMyOrders = () => API.get('/orders'); 
 
 const OrdersScreen = ({ navigation }: any) => {
   const { data: ordersResponse, isLoading } = useQuery({
@@ -29,14 +29,15 @@ const OrdersScreen = ({ navigation }: any) => {
       onPress={() => navigation.navigate('OrderQR', { orderId: item._id })}
     >
       <View>
-        <Text style={styles.cardOrderId}>Order #{item.orderId}</Text>
+        <Text style={styles.cardOrderId}>Order #{item._id.slice(-4)}</Text>
         <Text style={styles.cardDate}>
           {new Date(item.createdAt).toLocaleString()}
         </Text>
-        <Text style={styles.cardTotal}>${item.total.toFixed(2)}</Text>
+        {/* FIX: Use optional chaining (?? 0) for defensive access */}
+        <Text style={styles.cardTotal}>${(item.total ?? 0).toFixed(2)}</Text>
       </View>
       <View style={styles.statusContainer}>
-        <Text style={styles.cardStatus}>{item.status}</Text>
+        <Text style={styles.cardStatus}>{item.orderStatus || item.status}</Text>
         <Icon name="chevron-forward-outline" size={24} color={COLORS.primary} />
       </View>
     </TouchableOpacity>
@@ -63,6 +64,7 @@ const OrdersScreen = ({ navigation }: any) => {
     </SafeAreaView>
   );
 };
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   title: {

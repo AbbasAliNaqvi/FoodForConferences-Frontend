@@ -1,4 +1,4 @@
-import {useMemo} from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,19 +9,11 @@ import {
   StatusBar,
   TextInput,
   ActivityIndicator,
-  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Animated, {
-  useSharedValue,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  interpolate,
-  Extrapolate,
-} from 'react-native-reanimated';
 
 import { useAuth } from '../../context/AuthContext';
 import { fetchEvents, fetchMenusByEvent, fetchPopularVendors } from '../../api';
@@ -31,26 +23,13 @@ import EventCard from '../../components/common/EventCard';
 import FeaturedItemCard from '../../components/common/FeaturedItemCard';
 import VendorCard from '../../components/common/VendorCard';
 import SkeletonCard from '../../components/common/SkeletonCard';
-import { HOW_IT_WORKS_DATA } from '../../components/mockData';
-import FeatureSlide from '../../components/common/FeatureSlide';
-import Paginator from '../../components/common/Paginator';
+import FeatureOrbiter from '../../components/common/FeatureOrbiter';
 
 type Props = NativeStackScreenProps<any, 'Home'>;
-
-const HEADER_HEIGHT = 80;
-
-// AnimatedFlatList ko yahan create karunga
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 type FeaturedMenuItem = MenuItem & { eventId: string };
 
 const HomeScreen = ({ navigation }: Props) => {
   const { user } = useAuth();
-  const { width } = useWindowDimensions();
-  const CARD_WIDTH = width * 0.75 + SIZES.base * 2;
-
-  // Animation ke liye shared values bana raha hoon
-  const scrollY = useSharedValue(0); // Vertical scroll ke liye
-  const scrollX = useSharedValue(0); // Horizontal scroll ke liye
 
   // --- API se data fetch karne ka logic ---
   const { data: eventsResponse, isLoading: eventsLoading } = useQuery({ queryKey: ['events'], queryFn: fetchEvents });
@@ -74,27 +53,9 @@ const HomeScreen = ({ navigation }: Props) => {
     ).slice(0, 5);
   }, [menusData]);
 
-  // --- Animation ka logic yahan likh raha hoon ---
-
-  // Page ke vertical scroll ko handle karne ka logic
-  const verticalScrollHandler = useAnimatedScrollHandler(event => {
-    scrollY.value = event.contentOffset.y;
-  });
-  // 'How it Works' section ke horizontal scroll ka logic
-  const horizontalScrollHandler = useAnimatedScrollHandler(event => {
-    scrollX.value = event.contentOffset.x;
-  });
-
-  // Header ke liye animated style, jo scroll pe hide hoga
-  const animatedHeaderStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 40], [1, 0], Extrapolate.CLAMP);
-    const translateY = interpolate(scrollY.value, [0, 80], [0, -40], Extrapolate.CLAMP);
-    return { opacity, transform: [{ translateY }] };
-  });
-
   // --- UI ke chote-chote parts render karne ke functions ---
   const renderHeader = () => (
-    <Animated.View style={[styles.header, animatedHeaderStyle]}>
+    <View style={styles.header}>
       <View>
         <Text style={styles.greetingText}>Welcome, {user?.name || 'Attendee'}</Text>
         <Text style={styles.greetingSubtext}>Let's find your conference meal</Text>
@@ -102,7 +63,7 @@ const HomeScreen = ({ navigation }: Props) => {
       <TouchableOpacity style={styles.cartButton} onPress={() => navigation.navigate('Cart' as any)}>
         <Icon name="cart-outline" size={26} color={COLORS.secondary} />
       </TouchableOpacity>
-    </Animated.View>
+    </View>
   );
 
   const renderSkeletonLoader = () => (
@@ -118,11 +79,9 @@ const HomeScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       {renderHeader()}
-      <Animated.ScrollView
-        onScroll={verticalScrollHandler}
-        scrollEventThrottle={16}
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: HEADER_HEIGHT + SIZES.padding, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
         <View style={styles.searchContainer}>
           <Icon name="search-outline" size={22} color={COLORS.gray} style={styles.searchIcon} />
@@ -145,7 +104,8 @@ const HomeScreen = ({ navigation }: Props) => {
               keyExtractor={item => item._id}
               contentContainerStyle={{ paddingLeft: SIZES.padding }}
               renderItem={({ item }) => {
-                const vendor = popularVendors.find(v => v._id === item.vendorId);
+                // ✅ FIX: popularVendors check lagaya hai crash se bachne ke liye
+                const vendor = popularVendors ? popularVendors.find(v => v._id === item.vendorId) : undefined;
                 return (
                   <FeaturedItemCard
                     item={item}
@@ -199,25 +159,10 @@ const HomeScreen = ({ navigation }: Props) => {
           )}
         </View>
 
-        {/* Yahan mai apna naya animated carousel call kar raha hoon */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>How It Works</Text>
-          <AnimatedFlatList
-            data={HOW_IT_WORKS_DATA}
-            renderItem={({ item, index }) => <FeatureSlide item={item} index={index} scrollX={scrollX} />}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            pagingEnabled
-            snapToInterval={CARD_WIDTH}
-            decelerationRate="fast"
-            onScroll={horizontalScrollHandler} // Sahi handler yahan use karunga
-            scrollEventThrottle={16}
-            contentContainerStyle={{ paddingHorizontal: (width - CARD_WIDTH) / 2 }}
-          />
-          <Paginator data={HOW_IT_WORKS_DATA} scrollX={scrollX} />
-        </View>
-      </Animated.ScrollView>
+        {/* Yahan mai apna naya 'FeatureOrbiter' animated component call kar raha hoon */}
+        <FeatureOrbiter />
+
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -226,17 +171,12 @@ const HomeScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    paddingVertical: SIZES.base,
+    paddingHorizontal: SIZES.padding,
+    backgroundColor: COLORS.background,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SIZES.padding,
-    height: HEADER_HEIGHT,
-    backgroundColor: COLORS.background,
   },
   greetingText: { ...FONTS.h2, color: COLORS.dark, fontWeight: 'bold' },
   greetingSubtext: { ...FONTS.body4, color: COLORS.gray, marginTop: 4 },
@@ -259,12 +199,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.padding / 1.5,
     borderWidth: 1,
     borderColor: '#F0F0F0',
-    marginBottom: SIZES.padding,
+    marginTop: SIZES.padding,
   },
   searchIcon: { marginRight: SIZES.base },
   searchInput: { flex: 1, ...FONTS.body3, color: COLORS.dark, height: 50 },
   section: {
-    marginBottom: SIZES.padding * 1.5,
+    marginTop: SIZES.padding * 1.5,
   },
   sectionTitle: {
     ...FONTS.h2,

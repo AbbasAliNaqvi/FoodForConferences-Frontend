@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 // Navigators
 import HomeStack from './HomeStack';
 import OrdersStack from './OrdersStack';
-
+import CartScreen from '../screens/attendee/CartScreen';
 // Screens
 import ProfileScreen from '../screens/attendee/ProfileScreen';
 const PlaceholderScreen = () => <View style={{flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center'}}><Text>Coming Soon</Text></View>;
@@ -75,11 +75,11 @@ const AttendeeTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Favorites"
-        component={PlaceholderScreen} 
+        name="Cart"
+        component={CartScreen} 
         options={{
           tabBarIcon: ({ focused }) => (
-            <CustomTabBarIcon focused={focused} iconName="heart" label="Favorites" />
+            <CustomTabBarIcon focused={focused} iconName="heart" label="Cart" />
           ),
         }}
       />
@@ -99,14 +99,14 @@ const AttendeeTabs = () => {
 const styles = StyleSheet.create({
     tabBar: {
       position: 'absolute',
-      bottom: 25,
-      left: 20,
-      right: 20,
+      bottom: 1,
+      left: 10,
+      right: 10,
       backgroundColor: COLORS.primary,
       borderRadius: SIZES.radius * 2,
-      height: 80,
+      height: 90,
       borderTopWidth: 0,
-      paddingHorizontal: 10,
+      paddingHorizontal: 20,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.15,
@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: SIZES.radius * 1.5,
-      height: 50,
-      paddingHorizontal: 15,
+      height: 55,
+      paddingHorizontal: 5,
     },
     activeTabLabel: {
       fontSize: 14,

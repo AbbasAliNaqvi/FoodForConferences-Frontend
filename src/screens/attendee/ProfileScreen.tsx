@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     ...FONTS.h3,
-    color: COLORS.light,
+    color: COLORS.dark,
     fontWeight: 'bold',
   },
 });

@@ -67,13 +67,14 @@ export const createOrder = (payload: OrderPayload) => {
 
 export const fetchOrderById = (id: string) => {
   logApiCall(`/orders/${id}`);
-  return API.get(`/orders/${id}`);
+  return API.get(`/orders/${id}`).then(res => res.data); 
 };
 
 export const markOrderAsPaid = (orderId: string, paymentIntentId: string) => {
   logApiCall(`/orders/${orderId}/pay`);
   return API.post(`/orders/${orderId}/pay`, { paymentIntentId });
 };
+
 
 export const verifyQr = (orderId: string, token: string) => {
   logApiCall(`/orders/${orderId}/verify-qr`);
