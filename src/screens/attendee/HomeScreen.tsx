@@ -1,5 +1,4 @@
-// src/screens/attendee/HomeScreen.tsx
-import React from 'react';
+import {useMemo} from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,358 +6,284 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   StatusBar,
   TextInput,
-  ImageBackground,
+  ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
-import LinearGradient from 'react-native-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
 
-import AnimatedSection from '../../components/common/AnimatedSection';
 import { useAuth } from '../../context/AuthContext';
-import { fetchEvents, fetchPopularVendors } from '../../api';
+import { fetchEvents, fetchMenusByEvent, fetchPopularVendors } from '../../api';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
-import { Event, Vendor } from '../../types';
+import { Event, MenuItem, Menu, Vendor } from '../../types';
+import EventCard from '../../components/common/EventCard';
+import FeaturedItemCard from '../../components/common/FeaturedItemCard';
 import VendorCard from '../../components/common/VendorCard';
-
-// --- Mock Data for a Richer UI ---
-const specialsData = [
-  {
-    id: '1',
-    dish: 'Artisanal Wood-Fired Pizza',
-    vendor: 'Gourmet Slice',
-    image: 'https://images.unsplash.com/photo-1594007654729-407eedc4be65',
-  },
-  {
-    id: '2',
-    dish: 'Fresh Vegan Buddha Bowl',
-    vendor: 'Green Bites',
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd',
-  },
-  {
-    id: '3',
-    dish: 'Handcrafted Gourmet Burger',
-    vendor: 'The Patty Shack',
-    image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add',
-  },
-];
+import SkeletonCard from '../../components/common/SkeletonCard';
+import { HOW_IT_WORKS_DATA } from '../../components/mockData';
+import FeatureSlide from '../../components/common/FeatureSlide';
+import Paginator from '../../components/common/Paginator';
 
 type Props = NativeStackScreenProps<any, 'Home'>;
 
+const HEADER_HEIGHT = 80;
+
+// AnimatedFlatList ko yahan create karunga
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+type FeaturedMenuItem = MenuItem & { eventId: string };
+
 const HomeScreen = ({ navigation }: Props) => {
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const CARD_WIDTH = width * 0.75 + SIZES.base * 2;
 
-  const { data: eventsResponse, isLoading: eventsLoading } = useQuery({
-    queryKey: ['events'],
-    queryFn: fetchEvents,
-  });
+  // Animation ke liye shared values bana raha hoon
+  const scrollY = useSharedValue(0); // Vertical scroll ke liye
+  const scrollX = useSharedValue(0); // Horizontal scroll ke liye
+
+  // --- API se data fetch karne ka logic ---
+  const { data: eventsResponse, isLoading: eventsLoading } = useQuery({ queryKey: ['events'], queryFn: fetchEvents });
+  const { data: vendorsResponse, isLoading: vendorsLoading } = useQuery({ queryKey: ['popularVendors'], queryFn: fetchPopularVendors });
+
   const events: Event[] = eventsResponse?.data || [];
-
-  const { data: vendorsResponse, isLoading: vendorsLoading } = useQuery({
-    queryKey: ['popularVendors'],
-    queryFn: fetchPopularVendors,
-  });
   const popularVendors: Vendor[] = vendorsResponse?.data || [];
+  const activeEvent = events?.[0];
 
+  const { data: menusData, isLoading: menusLoading } = useQuery({
+    queryKey: ['featuredMenus', activeEvent?._id],
+    queryFn: () => fetchMenusByEvent(activeEvent!._id),
+    enabled: !!activeEvent,
+  });
+  
+  // Menu se items nikalne ka logic, eventId bhi add karna hai
+  const featuredItems = useMemo((): FeaturedMenuItem[] => {
+    if (!menusData?.data) return [];
+    return (menusData.data as Menu[]).flatMap(menu => 
+      menu.items.map(item => ({ ...item, eventId: menu.eventId }))
+    ).slice(0, 5);
+  }, [menusData]);
+
+  // --- Animation ka logic yahan likh raha hoon ---
+
+  // Page ke vertical scroll ko handle karne ka logic
+  const verticalScrollHandler = useAnimatedScrollHandler(event => {
+    scrollY.value = event.contentOffset.y;
+  });
+  // 'How it Works' section ke horizontal scroll ka logic
+  const horizontalScrollHandler = useAnimatedScrollHandler(event => {
+    scrollX.value = event.contentOffset.x;
+  });
+
+  // Header ke liye animated style, jo scroll pe hide hoga
+  const animatedHeaderStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 40], [1, 0], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 80], [0, -40], Extrapolate.CLAMP);
+    return { opacity, transform: [{ translateY }] };
+  });
+
+  // --- UI ke chote-chote parts render karne ke functions ---
   const renderHeader = () => (
-    <View style={styles.header}>
+    <Animated.View style={[styles.header, animatedHeaderStyle]}>
       <View>
-        <Text style={styles.greetingText}>Hi, {user?.name || 'There'}! 👋</Text>
-        <Text style={styles.greetingSubtext}>
-          Ready for a culinary adventure?
-        </Text>
+        <Text style={styles.greetingText}>Welcome, {user?.name || 'Attendee'}</Text>
+        <Text style={styles.greetingSubtext}>Let's find your conference meal</Text>
       </View>
-      <TouchableOpacity
-        style={styles.cartButton}
-        onPress={() => navigation.navigate('Cart' as any)}
-      >
+      <TouchableOpacity style={styles.cartButton} onPress={() => navigation.navigate('Cart' as any)}>
         <Icon name="cart-outline" size={26} color={COLORS.secondary} />
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 
-  const renderSearchBar = () => (
-    <View style={styles.searchContainer}>
-      <Icon
-        name="search-outline"
-        size={22}
-        color={COLORS.gray}
-        style={styles.searchIcon}
-      />
-      <TextInput
-        placeholder="Find a dish or vendor..."
-        style={styles.searchInput}
-        placeholderTextColor={COLORS.gray}
-      />
-    </View>
+  const renderSkeletonLoader = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: SIZES.padding }}>
+      {[...Array(3)].map((_, index) => (
+        <SkeletonCard key={index} width={SIZES.width * 0.55} height={180} />
+      ))}
+    </ScrollView>
   );
 
-  const renderSpecialItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.specialCard}>
-      <ImageBackground
-        source={{ uri: item.image }}
-        style={styles.specialImage}
-        imageStyle={{ borderRadius: SIZES.radius * 1.5 }}
-      >
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
-          style={styles.specialOverlay}
-        >
-          <Text style={styles.specialDish}>{item.dish}</Text>
-          <Text style={styles.specialVendor}>{item.vendor}</Text>
-        </LinearGradient>
-      </ImageBackground>
-    </TouchableOpacity>
-  );
-
-  const renderEventCard = (event: Event, index: number) => {
-    const hasBreakfast = event.mealSlots.some(slot =>
-      slot.name.toLowerCase().includes('breakfast'),
-    );
-    const hasLunch = event.mealSlots.some(slot =>
-      slot.name.toLowerCase().includes('lunch'),
-    );
-
-    return (
-      <AnimatedSection key={event._id} delay={index * 150}>
-        <TouchableOpacity
-          style={styles.eventCard}
-          onPress={() =>
-            navigation.navigate('EventDetail', { eventId: event._id })
-          }
-        >
-          <ImageBackground
-            source={{
-              uri:
-                event.imageUrl ||
-                'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
-            }}
-            style={styles.eventImage}
-            imageStyle={{ borderRadius: SIZES.radius * 1.5 }}
-          >
-            <LinearGradient
-              colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.9)']}
-              style={styles.eventOverlay}
-            >
-              <Text style={styles.eventTitle}>{event.title}</Text>
-              <View style={styles.eventMetaRow}>
-                <View style={styles.eventMeta}>
-                  <Icon
-                    name="calendar-outline"
-                    size={16}
-                    color={COLORS.light}
-                  />
-                  <Text style={styles.eventMetaText}>
-                    {new Date(event.startDate).toDateString()}
-                  </Text>
-                </View>
-                <View style={styles.eventMeta}>
-                  <Icon name="people-outline" size={16} color={COLORS.light} />
-                  <Text style={styles.eventMetaText}>
-                    {event.vendorIds.length}+ Vendors
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.eventSlots}>
-                {hasBreakfast && (
-                  <Icon
-                    name="cafe-outline"
-                    size={20}
-                    color={COLORS.light}
-                    style={{ marginRight: 8 }}
-                  />
-                )}
-                {hasLunch && (
-                  <Icon
-                    name="restaurant-outline"
-                    size={20}
-                    color={COLORS.light}
-                  />
-                )}
-              </View>
-            </LinearGradient>
-          </ImageBackground>
-        </TouchableOpacity>
-      </AnimatedSection>
-    );
-  };
-
+  // --- Final UI yahan se return hoga ---
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      <ScrollView
+      {renderHeader()}
+      <Animated.ScrollView
+        onScroll={verticalScrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingTop: HEADER_HEIGHT + SIZES.padding, paddingBottom: 120 }}
       >
-        {renderHeader()}
-        {renderSearchBar()}
+        <View style={styles.searchContainer}>
+          <Icon name="search-outline" size={22} color={COLORS.gray} style={styles.searchIcon} />
+          <TextInput
+            placeholder="Search events or vendors"
+            style={styles.searchInput}
+            placeholderTextColor={COLORS.gray}
+          />
+        </View>
 
-        <AnimatedSection>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Don't Miss Out</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Featured Items</Text>
+          {menusLoading ? (
+            renderSkeletonLoader()
+          ) : (
             <FlatList
-              data={specialsData}
-              renderItem={renderSpecialItem}
-              keyExtractor={item => item.id}
+              data={featuredItems}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={item => item._id}
+              contentContainerStyle={{ paddingLeft: SIZES.padding }}
+              renderItem={({ item }) => {
+                const vendor = popularVendors.find(v => v._id === item.vendorId);
+                return (
+                  <FeaturedItemCard
+                    item={item}
+                    vendorName={vendor?.name}
+                    onPress={() => navigation.navigate('EventDetail', { eventId: item.eventId })}
+                  />
+                );
+              }}
+            />
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular Vendors</Text>
+          {vendorsLoading ? (
+            renderSkeletonLoader()
+          ) : (
+            <FlatList
+              data={popularVendors}
+              renderItem={({ item }) => <VendorCard vendor={item} />}
+              keyExtractor={item => item._id}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingLeft: SIZES.padding }}
             />
-          </View>
-        </AnimatedSection>
-
-        <AnimatedSection delay={200}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Popular Vendors</Text>
-            {vendorsLoading ? (
-              <ActivityIndicator
-                color={COLORS.primary}
-                style={{ marginLeft: SIZES.padding }}
-              />
-            ) : (
-              <FlatList
-                data={popularVendors}
-                renderItem={({ item }) => <VendorCard vendor={item} />}
-                keyExtractor={item => item._id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingLeft: SIZES.padding }}
-              />
-            )}
-          </View>
-        </AnimatedSection>
+          )}
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Explore Events</Text>
+            <Text style={styles.sectionTitle}>Upcoming Conferences</Text>
             <TouchableOpacity>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
           {eventsLoading ? (
-            <ActivityIndicator
-              color={COLORS.primary}
-              style={{ marginTop: 20 }}
-            />
+            <View style={{ paddingHorizontal: SIZES.padding }}>
+              <SkeletonCard width={SIZES.width - SIZES.padding * 2} height={250} />
+            </View>
           ) : (
-            events.map(renderEventCard)
+            <View>
+              {events.map(event => (
+                <EventCard
+                  key={event._id}
+                  event={event}
+                  vendors={popularVendors}
+                  onPress={() => navigation.navigate('EventDetail', { eventId: event._id })}
+                />
+              ))}
+            </View>
           )}
         </View>
-      </ScrollView>
+
+        {/* Yahan mai apna naya animated carousel call kar raha hoon */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>How It Works</Text>
+          <AnimatedFlatList
+            data={HOW_IT_WORKS_DATA}
+            renderItem={({ item, index }) => <FeatureSlide item={item} index={index} scrollX={scrollX} />}
+            keyExtractor={item => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            snapToInterval={CARD_WIDTH}
+            decelerationRate="fast"
+            onScroll={horizontalScrollHandler} // Sahi handler yahan use karunga
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingHorizontal: (width - CARD_WIDTH) / 2 }}
+          />
+          <Paginator data={HOW_IT_WORKS_DATA} scrollX={scrollX} />
+        </View>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 };
 
+// Styles ko chhedne ki zaroorat nahi
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
   header: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SIZES.padding,
-    paddingTop: SIZES.padding * 1.5,
+    height: HEADER_HEIGHT,
+    backgroundColor: COLORS.background,
   },
-  greetingText: { ...FONTS.h2, color: COLORS.secondary, fontWeight: '700' },
-  greetingSubtext: { ...FONTS.body4, color: COLORS.gray },
+  greetingText: { ...FONTS.h2, color: COLORS.dark, fontWeight: 'bold' },
+  greetingSubtext: { ...FONTS.body4, color: COLORS.gray, marginTop: 4 },
   cartButton: {
-    padding: SIZES.base,
-    backgroundColor: `${COLORS.primary}40`,
-    borderRadius: SIZES.radius,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.light,
+    borderRadius: SIZES.radius * 1.5,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.light,
     borderRadius: SIZES.radius,
-    margin: SIZES.padding,
+    marginHorizontal: SIZES.padding,
     paddingHorizontal: SIZES.padding / 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    marginBottom: SIZES.padding,
   },
   searchIcon: { marginRight: SIZES.base },
   searchInput: { flex: 1, ...FONTS.body3, color: COLORS.dark, height: 50 },
-  section: { marginBottom: SIZES.padding * 1.5 },
+  section: {
+    marginBottom: SIZES.padding * 1.5,
+  },
   sectionTitle: {
     ...FONTS.h2,
     color: COLORS.dark,
     paddingHorizontal: SIZES.padding,
-    marginBottom: SIZES.padding / 1.5,
+    marginBottom: SIZES.padding,
+    fontWeight: 'bold',
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SIZES.padding,
-    marginBottom: SIZES.padding / 1.5,
-  },
-  seeAllText: { ...FONTS.body4, color: COLORS.accent, fontWeight: '700' },
-  specialCard: {
-    width: SIZES.width * 0.7,
-    height: 180,
-    marginRight: SIZES.padding,
-  },
-  specialImage: { flex: 1, justifyContent: 'flex-end' },
-  specialOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: SIZES.padding,
-    borderRadius: SIZES.radius * 1.5,
-  },
-  specialDish: {
-    ...FONTS.h3,
-    color: COLORS.light,
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  specialVendor: { ...FONTS.body4, color: `${COLORS.light}90` },
-  eventCard: {
-    height: 220,
-    marginHorizontal: SIZES.padding,
     marginBottom: SIZES.padding,
   },
-  eventImage: { flex: 1 },
-  eventOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: SIZES.padding,
-    borderRadius: SIZES.radius * 1.5,
-  },
-  eventTitle: {
-    ...FONTS.h2,
-    color: COLORS.light,
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.7)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 5,
-  },
-  eventMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SIZES.base,
-    width: '100%',
-  },
-  eventMeta: { flexDirection: 'row', alignItems: 'center' },
-  eventMetaText: {
-    ...FONTS.body4,
-    color: COLORS.light,
-    marginLeft: SIZES.base,
-    fontWeight: '600',
-  },
-  eventSlots: {
-    position: 'absolute',
-    top: SIZES.padding,
-    right: SIZES.padding,
-    flexDirection: 'row',
+  seeAllText: {
+    ...FONTS.body3,
+    color: COLORS.accent,
+    fontWeight: '700',
   },
 });
 

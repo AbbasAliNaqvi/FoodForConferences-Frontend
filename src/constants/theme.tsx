@@ -13,7 +13,7 @@ export const COLORS = {
   light: '#FFFFFF',      // Pure white for card backgrounds
   gray: '#888888',       // Softer grey for subtitles
 
-  background: '#FCFBF9', // A very light, warm off-white
+  background: '#F9F9F7', // Use a very light, warm off-white
 };
 
 export const SIZES = {
