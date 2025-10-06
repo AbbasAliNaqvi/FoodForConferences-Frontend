@@ -11,7 +11,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const handleLogout = async () => {
     await AsyncStorage.removeItem('token');
     Alert.alert('Logged Out', 'You have been logged out');
-    navigation.replace('Login');
+    navigation.replace('Auth');
   };
 
   return (

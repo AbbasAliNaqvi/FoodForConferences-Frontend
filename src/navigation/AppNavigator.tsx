@@ -1,69 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useAuth } from '../context/AuthContext';
+import AuthStack from './AuthStack';
+import AttendeeTabs from './AttendeeTabs'; 
+import VendorTabs from './VendorTabs';
+// import OrganizerTabs from './OrganizerTabs';
+import { ActivityIndicator, View } from 'react-native';
+import { COLORS } from '../constants/theme';
 
-// screens
-import LoginScreen from '../screens/Auth/LoginScreen';
-import RegisterScreen from '../screens/Auth/RegisterScreen';
-import EventListScreen from '../screens/Events/EventListScreen';
-import EventDetailScreen from '../screens/Events/EventDetailScreen';
-import MenuScreen from '../screens/Menus/MenuScreen';
-import OrderScreen from '../screens/Orders/OrderScreen';
-import ProfileScreen from '../screens/Profile/ProfileScreen';
-
-const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
-
-const BottomTabNavigator = () => (
-  <Tab.Navigator
-    initialRouteName="Events"
-    screenOptions={{
-      headerShown: false,
-    }}
-  >
-    <Tab.Screen name="Events" component={EventListScreen} />
-    <Tab.Screen name="Menu" component={MenuScreen} />
-    <Tab.Screen name="Orders" component={OrderScreen} />
-    <Tab.Screen name="Profile" component={ProfileScreen} />
-  </Tab.Navigator>
-);
+const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { token, role, isLoading } = useAuth();
 
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-      }
-    };
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
-    checkAuthStatus();
-  }, []); // Runs once when the component is mounted
+  const renderAppStack = () => {
+    switch (role) {
+      case 'attendee':
+        return <Stack.Screen name="AttendeeApp" component={AttendeeTabs} />;
+      case 'vendor':
+        return <Stack.Screen name="VendorApp" component={VendorTabs} />;
+      // case 'organizer':
+      //   return <Stack.Screen name="OrganizerApp" component={OrganizerTabs} />;
+      default:
+        // This case should ideally not be hit if a role is always present post-login
+        return <Stack.Screen name="Auth" component={AuthStack} />;
+    }
+  };
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: true }}>
-        {/* Auth Screens */}
-        {!isAuthenticated ? (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </>
-        ) : (
-          <>
-            {/* Main App Screens */}
-            <Stack.Screen name="Main" component={BottomTabNavigator} />
-          </>
-        )}
-
-        {/* Other screens */}
-        <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {token && role ? renderAppStack() : <Stack.Screen name="Auth" component={AuthStack} />}
       </Stack.Navigator>
     </NavigationContainer>
   );

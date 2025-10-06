@@ -3,14 +3,17 @@ import { Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 export const COLORS = {
-  primary: '#4C7380',    
-  secondary: '#FFC107',  
-  dark: '#212121',       // For primary text
-  light: '#FFFFFF',      // For backgrounds and light text
-  gray: '#9E9E9E',       // For secondary text, borders
-  success: '#4CAF50',
-  error: '#F44336',
-  background: '#F5F5F5', // Off-white background for less eye strain
+  primary: '#465860ff',    // Pale Sand
+  // primary: '#c5a974ff',    // Pale Sand
+  secondary: '#A1D1B1',  // Charcoal Grey
+  // secondary: '#575757',  // Charcoal Grey
+  accent: '#E88D67',     // A warm, inviting accent for buttons
+
+  dark: '#333333',       // Darker text for better contrast
+  light: '#FFFFFF',      // Pure white for card backgrounds
+  gray: '#888888',       // Softer grey for subtitles
+
+  background: '#FCFBF9', // A very light, warm off-white
 };
 
 export const SIZES = {

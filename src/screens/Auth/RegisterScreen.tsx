@@ -1,179 +1,198 @@
 import React, { useState } from 'react';
-import { View, Text, Alert, Modal, StyleSheet, TouchableOpacity } from 'react-native';
-import Input from '../../components/Input';
-import Button from '../../components/Button';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  ScrollView
+} from 'react-native';
 import { register } from '../../api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker'; // Correct Picker import
+import { COLORS, FONTS, SIZES } from '../../constants/theme';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Picker } from '@react-native-picker/picker'; 
 
-type Role = 'attendee' | 'organizer' | 'vendor' | 'staff' | 'admin';
 
-interface Props {
-  navigation: StackNavigationProp<any>;
-  route: RouteProp<any>;
-}
+type AuthStackParamList = {
+    Login: undefined;
+    Register: undefined;
+};
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
-const RegisterScreen: React.FC<Props> = ({ navigation }) => {
+const RegisterScreen = ({ navigation }: Props) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('attendee');
   const [password, setPassword] = useState('');
-  const [key, setKey] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
+  const [role, setRole] = useState('attendee'); // Default role
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (['organizer', 'vendor', 'staff', 'admin'].includes(role) && key !== '1234') {
-      return Alert.alert('Invalid Key', 'You must enter the correct key to register for this role.');
+    if (!name || !email || !password || !role) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
     }
-
+    setIsLoading(true);
     try {
-      const res = await register(name, email, password, role);
-      await AsyncStorage.setItem('token', res.data.token);
-      Alert.alert('Registered', `Welcome ${res.data.user.name}`);
-      navigation.replace('Events');
-    } catch (err: any) {
+      await register(name.trim(), email.trim(), password.trim(), role);
       Alert.alert(
-        'Registration Failed',
-        err.response?.data?.message || 'Something went wrong',
+        'Success', 
+        'Your account has been created. Please log in.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
       );
-    }
-  };
-
-  const handleRoleSelect = (selectedRole: Role) => {
-    if (['organizer', 'vendor', 'staff', 'admin'].includes(selectedRole)) {
-      setRole(selectedRole);
-      setModalVisible(true);
-    } else {
-      setRole(selectedRole);
-    }
-  };
-
-  const handleKeyValidation = () => {
-    if (key === '1234') {
-      setModalVisible(false);
-    } else {
-      Alert.alert('Invalid Key', 'Please enter the correct key to select this role.');
+    } catch (error: any) {
+      Alert.alert('Registration Failed', error.response?.data?.message || 'An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Register</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollView}>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Start your journey with us</Text>
 
-      <Input placeholder="Name" value={name} onChangeText={setName} />
-      <Input placeholder="Email" value={email} onChangeText={setEmail} />
-      
-      <Text style={styles.label}>Select Role</Text>
-      <Picker
-        selectedValue={role}
-        style={styles.input}
-        onValueChange={handleRoleSelect}
-      >
-        <Picker.Item label="Attendee" value="attendee" />
-        <Picker.Item label="Organizer" value="organizer" />
-        <Picker.Item label="Vendor" value="vendor" />
-        <Picker.Item label="Staff" value="staff" />
-        <Picker.Item label="Admin" value="admin" />
-      </Picker>
-
-      <Input
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-
-      <Button title="Register" onPress={handleRegister} />
-
-      <Text
-        style={{ marginTop: 10, color: '#2D9CDB', textAlign: 'center' }}
-        onPress={() => navigation.navigate('Login')}
-      >
-        Already have an account? Login
-      </Text>
-
-      <Modal
-        transparent={true}
-        visible={modalVisible}
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Enter Key to Confirm Role</Text>
-            <Input
-              placeholder="Enter Key"
-              value={key}
-              onChangeText={setKey}
-              secureTextEntry
-            />
-            <TouchableOpacity style={styles.modalButton} onPress={handleKeyValidation}>
-              <Text style={styles.modalButtonText}>Validate Key</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#ccc' }]}
-              onPress={() => setModalVisible(false)}
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name"
+            placeholderTextColor={COLORS.gray}
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email Address"
+            placeholderTextColor={COLORS.gray}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={COLORS.gray}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          
+          <Text style={styles.pickerLabel}>I am a...</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={role}
+              onValueChange={(itemValue) => setRole(itemValue)}
+              style={styles.picker}
             >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
+              <Picker.Item label="Conference Attendee" value="attendee" />
+              <Picker.Item label="Food Vendor" value="vendor" />
+              <Picker.Item label="Event Organizer" value="organizer" />
+            </Picker>
           </View>
         </View>
-      </Modal>
-    </View>
+
+        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color={COLORS.light} />
+          ) : (
+            <Text style={styles.buttonText}>Sign Up</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={[styles.footerText, styles.linkText]}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
+// Re-using most styles from LoginScreen
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center' },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginVertical: 10,
+  scrollView: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: SIZES.padding,
+  },
+  title: {
+    ...FONTS.h1,
+    color: COLORS.dark,
+    textAlign: 'center',
+    marginBottom: SIZES.base,
+  },
+  subtitle: {
+    ...FONTS.body3,
+    color: COLORS.gray,
+    textAlign: 'center',
+    marginBottom: SIZES.padding * 2,
+  },
+  inputContainer: {
+    marginBottom: SIZES.padding,
   },
   input: {
-    height: 45,
-    borderColor: '#ddd',
+    backgroundColor: COLORS.light,
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: SIZES.padding * 0.75,
+    borderRadius: SIZES.radius,
+    ...FONTS.body3,
+    color: COLORS.dark,
+    marginBottom: SIZES.padding * 0.75,
     borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginVertical: 5,
+    borderColor: '#E0E0E0',
   },
-  modalOverlay: {
-    flex: 1,
+  pickerLabel: {
+    ...FONTS.body3,
+    color: COLORS.gray,
+    marginLeft: SIZES.base,
+    marginBottom: SIZES.base,
+  },
+  pickerContainer: {
+      backgroundColor: COLORS.light,
+      borderRadius: SIZES.radius,
+      borderWidth: 1,
+      borderColor: '#E0E0E0',
+      justifyContent: 'center',
+  },
+  picker: {
+    color: COLORS.dark,
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    padding: SIZES.padding * 0.85,
+    borderRadius: SIZES.radius,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    marginTop: SIZES.base,
   },
-  modalContent: {
-    width: 300,
-    padding: 20,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    alignItems: 'center',
+  buttonText: {
+    ...FONTS.h3,
+    color: COLORS.light,
+    fontWeight: 'bold',
   },
-  modalTitle: {
-    fontSize: 18,
-    marginBottom: 10,
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: SIZES.padding,
+    paddingBottom: SIZES.padding
   },
-  modalButton: {
-    backgroundColor: '#2D9CDB',
-    padding: 10,
-    marginVertical: 5,
-    borderRadius: 5,
-    width: '100%',
-    alignItems: 'center',
+  footerText: {
+    ...FONTS.body4,
+    color: COLORS.gray,
   },
-  modalButtonText: {
-    color: 'white',
-    fontWeight: '600',
+  linkText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
 });
 
