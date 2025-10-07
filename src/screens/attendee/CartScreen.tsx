@@ -9,82 +9,85 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackScreenProps, StackActions } from '@react-navigation/native-stack'; 
 import { useCart } from '../../context/CartContext';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
-import { createOrder } from '../../api';
+import { createOrder, createPaymentIntent, markOrderAsPaid, ApiResponse } from '../../api'; 
 import Icon from 'react-native-vector-icons/Ionicons';
-import { MenuItem } from '../../types';
+import { MenuItem, Order } from '../../types'; 
 
-interface CartItem {
-  item: MenuItem;
-  quantity: number;
-}
+// --- TYPES ---
+interface CartItem { item: MenuItem; quantity: number; }
+interface CreateOrderResponseData extends Order { _id: string; }
 
 type RootStackParamList = {
   Cart: undefined;
   Orders: undefined;
+  OrderDetails: { orderId: string }; 
 };
 type Props = NativeStackScreenProps<RootStackParamList, 'Cart'>;
 
 const CartScreen = ({ navigation }: Props) => {
-  const { cartItems, updateQuantity, totalPrice, clearCart, eventId } =
-    useCart();
+  const { cartItems, updateQuantity, totalPrice, clearCart, eventId } = useCart();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  const executePaymentFlow = async (orderId: string, amount: number) => {
+    // 1. Create a Payment Intent (Amount in cents)
+    await createPaymentIntent(Math.round(amount * 100)); 
+    
+    // MOCK: Generate a mock ID
+    const MOCK_PAYMENT_INTENT_ID = `pi_mock_${new Date().getTime()}`;
+    
+    // 2. Mark the order as paid on the backend
+    return markOrderAsPaid(orderId, MOCK_PAYMENT_INTENT_ID);
+  };
 
   const handleCreateOrder = async () => {
     const validCartItems = cartItems.filter(ci => ci.item?._id && ci.quantity > 0);
-
     if (validCartItems.length === 0 || !eventId) {
-      console.error('API CALL PREVENTED: Cart is empty or invalid.');
       Alert.alert('Error', 'Cart is empty or event is missing.');
       return;
     }
-    
-    // Vendor ID is guaranteed to be the same for all items by CartContext logic
     const vendorId = validCartItems[0].item.vendorId;
-
-    const itemsPayload = validCartItems.map(ci => {
-      return {
-        itemId: ci.item._id.toString(), 
-        vendorId: ci.item.vendorId, // <--- FIX APPLIED HERE: ci.item.vendorId
-        qty: ci.quantity,
-        price: ci.item.price,
-      };
-    });
-
-    const payload = {
-      eventId,
-      vendorId, 
-      items: itemsPayload,
-      totalAmount: totalPrice,
-    };
-    
-    console.log('API CALL START: Creating Order');
-    console.log('PAYLOAD:', JSON.stringify(payload, null, 2));
+    const itemsPayload = validCartItems.map(ci => ({
+      itemId: ci.item._id.toString(),
+      vendorId: ci.item.vendorId,
+      qty: ci.quantity,
+      price: ci.item.price,
+    }));
+    const payload = { eventId, vendorId, items: itemsPayload, totalAmount: totalPrice };
 
     setIsPlacingOrder(true);
     try {
-      const response = await createOrder(payload);
+      // 1. Create the Order
+      const orderCreationResponse = 
+        await createOrder(payload) as ApiResponse<CreateOrderResponseData>;
+      const orderId = orderCreationResponse.data._id;
       
-      console.log('API CALL SUCCESS: Order created.', response.data);
+      // 2. Execute Payment Flow
+      await executePaymentFlow(orderId, totalPrice);
 
+      // 3. Finalize and Navigate
       clearCart();
+      
       Alert.alert('Order Placed!', `Your order has been confirmed.`, [
         {
           text: 'VIEW ORDER',
-          onPress: () => navigation.navigate('Orders' as never),
+          onPress: () => {
+            // BEST PRACTICE: Use StackActions.replace to prevent going back to the empty cart.
+            // Ensure 'OrderDetails' is the correct name in HomeStack.js
+            navigation.dispatch(
+              StackActions.replace('OrderDetails', { orderId: orderId }) 
+            );
+          },
         },
       ]);
     } catch (error: any) {
-      console.error('API CALL FAILED: Order creation failed.', error.response?.data || error.message);
-      
+      console.error('Order/Payment failed:', error.response?.data || error.message);
       const errorMessage =
-        error.response?.data?.message ||
-        'We could not process your order. Please try again.';
+        error.response?.data?.message || 'Order processing failed. Please try again.';
       Alert.alert('Error Placing Order', errorMessage);
     } finally {
-      console.log('API CALL END: Order transaction finished.');
       setIsPlacingOrder(false);
     }
   };
@@ -108,7 +111,7 @@ const CartScreen = ({ navigation }: Props) => {
         <TouchableOpacity
           onPress={() => updateQuantity(item.item._id, item.quantity - 1)}
           style={styles.quantityButton}
-          disabled={isPlacingOrder}
+          disabled={isPlacingOrder || item.quantity <= 1}
         >
           <Icon name="remove-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
@@ -158,10 +161,12 @@ const CartScreen = ({ navigation }: Props) => {
           <TouchableOpacity
             style={[
               styles.checkoutButton,
-              isPlacingOrder && styles.checkoutButtonDisabled,
+              isPlacingOrder || totalPrice <= 0
+                ? styles.checkoutButtonDisabled
+                : null,
             ]}
             onPress={handleCreateOrder}
-            disabled={isPlacingOrder}
+            disabled={isPlacingOrder || totalPrice <= 0} 
           >
             {isPlacingOrder ? (
               <ActivityIndicator size="small" color={COLORS.light} />
@@ -174,6 +179,7 @@ const CartScreen = ({ navigation }: Props) => {
     </SafeAreaView>
   );
 };
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {

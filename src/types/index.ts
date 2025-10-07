@@ -73,6 +73,8 @@ export interface MenuItem {
   imageUrl?: string;
   vendorId: string;
   eventId: string;
+  currency?: string;
+  title: string;
 }
 
 // --------------------------------------

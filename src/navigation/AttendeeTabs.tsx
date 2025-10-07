@@ -7,9 +7,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 // Navigators
 import HomeStack from './HomeStack';
 import OrdersStack from './OrdersStack';
-import CartScreen from '../screens/attendee/CartScreen';
 // Screens
+import CartScreen from '../screens/attendee/CartScreen';
 import ProfileScreen from '../screens/attendee/ProfileScreen';
+import OrderDetailsScreen from '../screens/attendee/OrderDetailsScreen';
+
 const PlaceholderScreen = () => <View style={{flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center'}}><Text>Coming Soon</Text></View>;
 
 

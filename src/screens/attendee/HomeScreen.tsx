@@ -136,7 +136,7 @@ const HomeScreen = ({ navigation }: Props) => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Conferences</Text>
+            <Text style={styles.sectionTitle}>Top Conferences</Text>
             <TouchableOpacity>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
@@ -199,30 +199,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.padding / 1.5,
     borderWidth: 1,
     borderColor: '#F0F0F0',
-    marginTop: SIZES.padding,
+    // marginTop: SIZES.padding,
   },
   searchIcon: { marginRight: SIZES.base },
   searchInput: { flex: 1, ...FONTS.body3, color: COLORS.dark, height: 50 },
   section: {
-    marginTop: SIZES.padding * 1.5,
+    marginTop: SIZES.padding * 0.5,
   },
   sectionTitle: {
     ...FONTS.h2,
     color: COLORS.dark,
     paddingHorizontal: SIZES.padding,
-    marginBottom: SIZES.padding,
+    marginBottom: SIZES.padding1,
     fontWeight: 'bold',
   },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SIZES.padding,
-    marginBottom: SIZES.padding,
+    gap: '35%'
+    // alignItems: 'center',
+    // paddingHorizontal: SIZES.padding,
+    // marginBottom: SIZES.padding,
   },
   seeAllText: {
     ...FONTS.body3,
-    color: COLORS.accent,
+    color: COLORS.primary,
     fontWeight: '700',
   },
 });
