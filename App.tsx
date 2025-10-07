@@ -1,20 +1,26 @@
-
 import React from 'react';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext'; 
 import AppNavigator from './src/navigation/AppNavigator';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StripeProvider } from '@stripe/stripe-react-native';
+import { STRIPE_PUBLISHABLE_KEY } from './apistripe'
 
 const queryClient = new QueryClient();
 
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <CartProvider> 
-          <AppNavigator />
-        </CartProvider>
-      </AuthProvider>
+      <StripeProvider 
+        publishableKey={STRIPE_PUBLISHABLE_KEY} 
+        merchantIdentifier="merchant.com.foodforconferences" 
+      >
+        <AuthProvider>
+          <CartProvider> 
+            <AppNavigator />
+          </CartProvider>
+        </AuthProvider>
+      </StripeProvider>
     </QueryClientProvider>
   );
 };

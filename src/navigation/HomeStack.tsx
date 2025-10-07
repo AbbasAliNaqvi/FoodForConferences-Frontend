@@ -7,6 +7,7 @@ import CartScreen from '../screens/attendee/CartScreen';
 import QRScannerScreen from '../screens/shared/QRScannerScreen';
 import EventMenuScreen from '../screens/attendee/EventMenuScreen'; 
 import OrderDetailsScreen from '../screens/attendee/OrderDetailsScreen';
+import MapScreen from '../screens/attendee/MapScreen';
 const Stack = createNativeStackNavigator();
 
 const HomeStack = () => {
@@ -16,10 +17,8 @@ const HomeStack = () => {
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="EventMenu" component={EventMenuScreen} /> 
       <Stack.Screen name="MenuItemDetail" component={MenuItemDetailScreen} />
-      
-      {/* FIX: Change name to match component's internal type definition */}
       <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} /> 
-      
+      <Stack.Screen name="Map" component={MapScreen} /> 
       <Stack.Screen name="Cart" component={CartScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="QRScanner" component={QRScannerScreen} options={{ presentation: 'modal' }} />
     </Stack.Navigator>

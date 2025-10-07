@@ -9,16 +9,23 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { NativeStackScreenProps, StackActions } from '@react-navigation/native-stack'; 
+import { NativeStackScreenProps, StackActions } from '@react-navigation/native-stack';
+import { useStripe, PaymentSheetError } from '@stripe/stripe-react-native'; // NEW: Import Stripe hooks
 import { useCart } from '../../context/CartContext';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
-import { createOrder, createPaymentIntent, markOrderAsPaid, ApiResponse } from '../../api'; 
+import { 
+  createOrder, 
+  createPaymentIntent, 
+  markOrderAsPaid, 
+  ApiResponse 
+} from '../../api'; 
 import Icon from 'react-native-vector-icons/Ionicons';
 import { MenuItem, Order } from '../../types'; 
 
 // --- TYPES ---
 interface CartItem { item: MenuItem; quantity: number; }
 interface CreateOrderResponseData extends Order { _id: string; }
+interface CreateIntentResponse { clientSecret: string; intentId: string; }
 
 type RootStackParamList = {
   Cart: undefined;
@@ -30,16 +37,61 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Cart'>;
 const CartScreen = ({ navigation }: Props) => {
   const { cartItems, updateQuantity, totalPrice, clearCart, eventId } = useCart();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  
+  // PROFESSIONALLY: Use the Stripe hooks
+  const { initPaymentSheet, presentPaymentSheet } = useStripe(); 
 
+  /**
+   * Executes the secure Stripe Payment Sheet flow.
+   * @param orderId The ID of the pre-created order.
+   * @param amount The total amount to be charged.
+   * @returns A Promise that resolves when the order is marked as paid on the backend.
+   */
   const executePaymentFlow = async (orderId: string, amount: number) => {
-    // 1. Create a Payment Intent (Amount in cents)
-    await createPaymentIntent(Math.round(amount * 100)); 
+    // 1. Create a Payment Intent on your backend
+    // Amount must be in cents. API response should contain clientSecret.
+    const intentResponse = 
+      await createPaymentIntent(Math.round(amount * 100)) as ApiResponse<CreateIntentResponse>;
     
-    // MOCK: Generate a mock ID
-    const MOCK_PAYMENT_INTENT_ID = `pi_mock_${new Date().getTime()}`;
+    const { clientSecret, intentId } = intentResponse.data;
     
-    // 2. Mark the order as paid on the backend
-    return markOrderAsPaid(orderId, MOCK_PAYMENT_INTENT_ID);
+    if (!clientSecret) {
+      throw new Error('Payment service failed to provide a client secret.');
+    }
+
+    // 2. Initialize the Payment Sheet UI
+    const { error: initError } = await initPaymentSheet({
+      paymentIntentClientSecret: clientSecret,
+      merchantDisplayName: 'Your Food Vendor', // REQUIRED by Stripe
+      allowsDelayedPaymentMethods: true, // Allows payment methods that take time
+      // customerId: 'cus_xyz', // Include if you support saved cards
+      // customerEphemeralKeySecret: 'ek_xyz', // Include if you support saved cards
+    });
+
+    if (initError) {
+      console.error('Stripe Init Error:', initError);
+      throw new Error(initError.message || 'Payment setup failed.');
+    }
+
+    // 3. Present the Payment Sheet UI to the user
+    const { error: paymentError } = await presentPaymentSheet();
+
+    if (paymentError) {
+      // Handle user cancellation (common case)
+      if (paymentError.code === PaymentSheetError.Canceled) {
+        throw new Error('Payment was cancelled by the user.');
+      }
+      
+      // Handle other payment errors (e.g., declined card)
+      console.error('Stripe Payment Error:', paymentError);
+      throw new Error(paymentError.message || 'Payment failed.');
+    }
+
+    // 4. Payment succeeded client-side - Finalize order on the backend
+    // We use the intentId from our backend's creation response, 
+    // but in a real-world scenario, you might also rely on the webhook.
+    // However, marking it paid here provides immediate feedback.
+    return markOrderAsPaid(orderId, intentId);
   };
 
   const handleCreateOrder = async () => {
@@ -48,6 +100,8 @@ const CartScreen = ({ navigation }: Props) => {
       Alert.alert('Error', 'Cart is empty or event is missing.');
       return;
     }
+    
+    // PROFESSIONALLY: Ensure vendorId logic is robust (e.g., all items belong to one vendor)
     const vendorId = validCartItems[0].item.vendorId;
     const itemsPayload = validCartItems.map(ci => ({
       itemId: ci.item._id.toString(),
@@ -58,35 +112,44 @@ const CartScreen = ({ navigation }: Props) => {
     const payload = { eventId, vendorId, items: itemsPayload, totalAmount: totalPrice };
 
     setIsPlacingOrder(true);
+    let orderIdToCleanup: string | null = null; 
+
     try {
-      // 1. Create the Order
+      // 1. Create the Order in PENDING status
       const orderCreationResponse = 
         await createOrder(payload) as ApiResponse<CreateOrderResponseData>;
       const orderId = orderCreationResponse.data._id;
+      orderIdToCleanup = orderId; // Save ID in case payment fails
       
-      // 2. Execute Payment Flow
+      // 2. Execute Payment Flow - This will block until the user pays or cancels
       await executePaymentFlow(orderId, totalPrice);
 
-      // 3. Finalize and Navigate
+      // 3. Finalize and Navigate (Only reached if payment and markOrderAsPaid succeed)
       clearCart();
       
       Alert.alert('Order Placed!', `Your order has been confirmed.`, [
         {
           text: 'VIEW ORDER',
           onPress: () => {
-            // BEST PRACTICE: Use StackActions.replace to prevent going back to the empty cart.
-            // Ensure 'OrderDetails' is the correct name in HomeStack.js
             navigation.dispatch(
-              StackActions.replace('OrderDetails', { orderId: orderId }) 
+              StackActions.replace('Orders', { orderId: orderId }) 
             );
           },
         },
       ]);
     } catch (error: any) {
-      console.error('Order/Payment failed:', error.response?.data || error.message);
-      const errorMessage =
-        error.response?.data?.message || 'Order processing failed. Please try again.';
-      Alert.alert('Error Placing Order', errorMessage);
+      const errorMsg = error.message || 'An unknown error occurred.';
+      
+      // PROFESSIONALLY: If order was created but payment failed/cancelled, 
+      // you should handle the cleanup (e.g., cancel the order on the backend).
+      if (orderIdToCleanup) {
+        // Here you would call an API like: await cancelOrder(orderIdToCleanup);
+        console.warn(`Order ${orderIdToCleanup} created but payment failed. Needs cleanup.`);
+      }
+
+      // Provide user-friendly message
+      const alertTitle = errorMsg.includes('cancelled') ? 'Payment Cancelled' : 'Payment Failed';
+      Alert.alert(alertTitle, errorMsg);
     } finally {
       setIsPlacingOrder(false);
     }
@@ -187,6 +250,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SIZES.padding,
+    marginTop:30,
   },
   title: { ...FONTS.h1, color: COLORS.dark },
   clearButton: { padding: SIZES.base },

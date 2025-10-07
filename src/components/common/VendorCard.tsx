@@ -26,7 +26,7 @@ const VendorCard = ({ vendor }: VendorCardProps) => (
       {vendor.name}
     </Text>
     <View style={styles.ratingContainer}>
-      <Icon name="star" color="#FFC107" size={16} />
+      <Icon name="star" color="#465860ff" size={16} />
       <Text style={styles.ratingText}>{vendor.rating.toFixed(1)}</Text>
     </View>
     <Text style={styles.cuisine}>{vendor.cuisine}</Text>
@@ -36,23 +36,24 @@ const VendorCard = ({ vendor }: VendorCardProps) => (
 const styles = StyleSheet.create({
   card: {
     width: 140,
-    height: 180,
+    height: 185,
     backgroundColor: COLORS.light,
-    borderRadius: SIZES.radius * 1.5,
-    marginRight: SIZES.padding,
-    padding: SIZES.padding / 1.5,
+    borderRadius: SIZES.radius * 1.2,
+    marginRight: SIZES.padding1,
+    padding: SIZES.padding / 2.5,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 5,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.07,
+    // shadowRadius: 10,
+    elevation: 2,
+    marginBottom:5,
   },
-  logo: { width: 70, height: 70, borderRadius: 35, marginBottom: SIZES.base },
+  logo: { width: 90, height: 80, borderRadius: 13, marginBottom: SIZES.base },
   name: {
     ...FONTS.h3,
-    color: COLORS.secondary,
+    color: COLORS.primary,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -66,6 +67,7 @@ const styles = StyleSheet.create({
     color: COLORS.dark,
     marginLeft: 4,
     fontWeight: '600',
+    
   },
   cuisine: { ...FONTS.body4, color: COLORS.gray },
 });
