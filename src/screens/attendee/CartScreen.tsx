@@ -342,8 +342,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     fontWeight: '500',
   },
-  
-  // --- ITEM CARD STYLES (Fixed with Clean Border) ---
+
   itemContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -353,13 +352,11 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius * 1.5,
     marginBottom: SIZES.padding,
     
-    // FIX: Removed shadow/elevation, added clean bottom border
     borderWidth: 1,
-    borderColor: COLORS.lightGray, // Overall border for a clean card look
-    borderBottomWidth: 3, // Emphasis on the bottom for separation effect
-    borderBottomColor: COLORS.lightGray, // Darker color might be needed if lightGray is too close to white
-    
-    overflow: 'hidden', // Set to hidden to contain border/image if needed
+    borderColor: COLORS.lightGray, 
+    borderBottomWidth: 3, 
+    borderBottomColor: COLORS.lightGray, 
+    overflow: 'hidden', 
   },
   itemImage: {
     width: 60,
@@ -420,13 +417,13 @@ const styles = StyleSheet.create({
     padding: SIZES.padding * 1.5,
     paddingVertical: 50,
     borderRadius:40,
-    paddingBottom: SIZES.padding * 5,
-    borderTopLeftRadius: SIZES.radius * 52,
-    borderTopRightRadius: SIZES.radius * 52,
+    paddingBottom: SIZES.padding * 4,
+    borderTopLeftRadius: SIZES.radius * 3,
+    borderTopRightRadius: SIZES.radius * 3,
     backgroundColor: COLORS.white,
     shadowColor: COLORS.dark,
-    shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.8,
     shadowRadius: 10,
     elevation: 10, 
   },

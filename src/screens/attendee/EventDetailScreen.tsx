@@ -22,8 +22,6 @@ type RootStackParamList = {
   EventDetail: { eventId: string };
 };
 type Props = NativeStackScreenProps<RootStackParamList, 'EventDetail'>;
-
-// --- Date Formatting Helpers (no changes) ---
 const formatDate = (date?: Date | string) => {
   if (!date) return '';
   return new Date(date).toLocaleDateString(undefined, {
@@ -77,7 +75,6 @@ const EventHeader = React.memo(
   ),
 );
 
-// ✅ FIX 1: Update EventTimeline to accept an 'onPressMenu' function prop
 const EventTimeline = React.memo(
   ({
     mealSlots,
@@ -90,9 +87,9 @@ const EventTimeline = React.memo(
 
     return (
       <View style={styles.sectionContainer}>
-        {/* ✅ FIX 2: Use the 'onPressMenu' prop for the button's onPress event */}
         <TouchableOpacity style={styles.ctaButton} onPress={onPressMenu}>
-          <Text style={styles.ctaButtonText}>VIEW MENU</Text>
+          <Icon name="fast-food" size={20} color={COLORS.light} />{' '}
+          <Text style={styles.ctaButtonText}> MENU</Text>
         </TouchableOpacity>
         <Text style={styles.sectionTitle}>Event Timeline</Text>
         <View style={styles.timeline}>
@@ -195,7 +192,7 @@ const EventDetailScreen = ({ route, navigation }: Props) => {
 
         <View style={styles.contentSheet}>
           <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle1}>{event.title}</Text>
+            <Text style={styles.sectionTitle1}>{event.title}</Text>
             <Text style={styles.dateText}>
               {formatDateRange(event.startDate, event.endDate)}
             </Text>
@@ -211,7 +208,6 @@ const EventDetailScreen = ({ route, navigation }: Props) => {
             )}
           </View>
 
-          {/* ✅ FIX 3: Pass the navigation logic down to the EventTimeline component */}
           <EventTimeline
             mealSlots={event.mealSlots}
             onPressMenu={() =>
@@ -276,12 +272,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.padding,
     marginBottom: SIZES.padding * 2,
   },
-  sectionTitle1:{
-        ...FONTS.h1,
+  sectionTitle1: {
+    ...FONTS.h1,
     color: COLORS.primary,
     marginBottom: 10,
-    marginTop:-20,
-    fontWeight:700,
+    marginTop: -20,
+    fontWeight: 700,
   },
   sectionTitle: {
     ...FONTS.h2,
