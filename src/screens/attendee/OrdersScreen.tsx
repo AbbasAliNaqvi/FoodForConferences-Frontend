@@ -37,23 +37,48 @@ const getStatusProps = (status: string) => {
 
   switch (normalizedStatus) {
     case 'completed':
-      return { color: COLORS.success, icon: 'checkmark-done-circle', bgColor: COLORS.success + '15' };
+      return {
+        color: COLORS.success,
+        icon: 'checkmark-done-circle',
+        bgColor: COLORS.success + '15',
+      };
     case 'ready':
     case 'picked':
-      return { color: COLORS.info, icon: 'bag-check', bgColor: COLORS.info + '15' };
+      return {
+        color: COLORS.info,
+        icon: 'bag-check',
+        bgColor: COLORS.info + '15',
+      };
     case 'preparing':
-      return { color: COLORS.warning, icon: 'timer', bgColor: COLORS.warning + '15' };
+      return {
+        color: COLORS.warning,
+        icon: 'timer',
+        bgColor: COLORS.warning + '15',
+      };
     case 'cancelled':
     case 'failed':
-      return { color: COLORS.error, icon: 'close-circle', bgColor: COLORS.error + '15' };
+      return {
+        color: COLORS.error,
+        icon: 'close-circle',
+        bgColor: COLORS.error + '15',
+      };
     case 'queued':
     default:
-      return { color: COLORS.gray, icon: 'ellipsis-horizontal-circle', bgColor: COLORS.gray + '15' };
+      return {
+        color: COLORS.gray,
+        icon: 'ellipsis-horizontal-circle',
+        bgColor: COLORS.gray + '15',
+      };
   }
 };
 
 const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
-  const { data: ordersResponse, isLoading, refetch, isRefetching } = useQuery({
+  const {
+    data: ordersResponse,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ['myOrders'],
     queryFn: fetchMyOrders,
     staleTime: 1000,
@@ -65,7 +90,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [refetch])
+    }, [refetch]),
   );
 
   const onRefresh = useCallback(() => {
@@ -76,12 +101,15 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
     const currentStatus = item.orderStatus || item.status || 'queued';
     const statusProps = getStatusProps(currentStatus);
     const firstItemName = item.items?.[0]?.name;
-    const orderTitle = firstItemName || `Order with ${item.items?.length || 0} items`;
+    const orderTitle =
+      firstItemName || `Order with ${item.items?.length || 0} items`;
 
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
+        onPress={() =>
+          navigation.navigate('OrderDetails', { orderId: item._id })
+        }
       >
         <View style={styles.contentLeft}>
           <Text style={styles.cardOrderTitle} numberOfLines={1}>
@@ -90,7 +118,8 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
 
           <View style={styles.detailRow}>
             <Text style={styles.cardTotal}>
-              <Text style={{ color: COLORS.dark }}>Total: </Text>${(item.total ?? 0).toFixed(2)}
+              <Text style={{ color: COLORS.dark }}>Total: </Text>$
+              {(item.total ?? 0).toFixed(2)}
             </Text>
             <View style={styles.separator} />
             <Text style={styles.cardDate}>
@@ -107,7 +136,10 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
         <View
           style={[
             styles.statusPillContainer,
-            { borderColor: statusProps.color, backgroundColor: statusProps.bgColor },
+            {
+              borderColor: statusProps.color,
+              backgroundColor: statusProps.bgColor,
+            },
           ]}
         >
           <Icon name={statusProps.icon} size={16} color={statusProps.color} />
@@ -126,52 +158,68 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <View style={styles.fullContainer}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>My Orders</Text>
-      </View>
+      <SafeAreaView style={styles.header} edges={['top', 'left', 'right']}>
+        <Text style={styles.headerTitle}>My Orders</Text>
+      </SafeAreaView>
 
       {isLoading && orders.length === 0 ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={styles.loadingIndicator} />
+        <ActivityIndicator
+          size="large"
+          color={COLORS.primary}
+          style={styles.loadingIndicator}
+        />
       ) : (
         <FlatList
           data={orders}
           renderItem={renderOrderCard}
-          keyExtractor={(item) => item._id}
+          keyExtractor={item => item._id}
           contentContainerStyle={styles.flatListContent}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={COLORS.primary} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+            />
           }
           ListEmptyComponent={
-            <Text style={styles.emptyText}>You haven't placed any orders yet. 🛒</Text>
+            <Text style={styles.emptyText}>
+              You haven't placed any orders yet. 🛒
+            </Text>
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  fullContainer: {
     flex: 1,
     backgroundColor: COLORS.lightGray || '#F0F0F0',
   },
   header: {
+    paddingBottom: SIZES.padding * 1.5,
     paddingHorizontal: SIZES.padding,
-    paddingVertical: SIZES.padding * 1.3,
     backgroundColor: COLORS.primary,
+    borderBottomLeftRadius: SIZES.radius * 2,
+    borderBottomRightRadius: SIZES.radius * 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 8,
   },
-  title: {
+  headerTitle: {
     ...FONTS.h1,
     color: COLORS.light,
     fontWeight: 'bold',
+    marginTop: 10,
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignContent: 'center',
   },
   flatListContent: {
     padding: SIZES.padding,

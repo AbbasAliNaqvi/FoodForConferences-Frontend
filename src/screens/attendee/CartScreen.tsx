@@ -3,14 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  StatusBar,
+  Image, 
 } from 'react-native';
 import { NativeStackScreenProps, StackActions } from '@react-navigation/native-stack';
-import { useStripe, PaymentSheetError } from '@stripe/stripe-react-native'; // NEW: Import Stripe hooks
+import { useStripe, PaymentSheetError } from '@stripe/stripe-react-native';
 import { useCart } from '../../context/CartContext';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 import { 
@@ -22,7 +23,13 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { MenuItem, Order } from '../../types'; 
 
-// --- TYPES ---
+interface MenuItem {
+  _id: string;
+  name: string;
+  price: number;
+  vendorId: string;
+  imageUrl?: string;
+}
 interface CartItem { item: MenuItem; quantity: number; }
 interface CreateOrderResponseData extends Order { _id: string; }
 interface CreateIntentResponse { clientSecret: string; intentId: string; }
@@ -38,18 +45,9 @@ const CartScreen = ({ navigation }: Props) => {
   const { cartItems, updateQuantity, totalPrice, clearCart, eventId } = useCart();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   
-  // PROFESSIONALLY: Use the Stripe hooks
   const { initPaymentSheet, presentPaymentSheet } = useStripe(); 
 
-  /**
-   * Executes the secure Stripe Payment Sheet flow.
-   * @param orderId The ID of the pre-created order.
-   * @param amount The total amount to be charged.
-   * @returns A Promise that resolves when the order is marked as paid on the backend.
-   */
   const executePaymentFlow = async (orderId: string, amount: number) => {
-    // 1. Create a Payment Intent on your backend
-    // Amount must be in cents. API response should contain clientSecret.
     const intentResponse = 
       await createPaymentIntent(Math.round(amount * 100)) as ApiResponse<CreateIntentResponse>;
     
@@ -59,38 +57,26 @@ const CartScreen = ({ navigation }: Props) => {
       throw new Error('Payment service failed to provide a client secret.');
     }
 
-    // 2. Initialize the Payment Sheet UI
     const { error: initError } = await initPaymentSheet({
       paymentIntentClientSecret: clientSecret,
-      merchantDisplayName: 'Your Food Vendor', // REQUIRED by Stripe
-      allowsDelayedPaymentMethods: true, // Allows payment methods that take time
-      // customerId: 'cus_xyz', // Include if you support saved cards
-      // customerEphemeralKeySecret: 'ek_xyz', // Include if you support saved cards
+      merchantDisplayName: 'Your Food Vendor',
+      allowsDelayedPaymentMethods: true,
     });
 
     if (initError) {
-      console.error('Stripe Init Error:', initError);
       throw new Error(initError.message || 'Payment setup failed.');
     }
 
-    // 3. Present the Payment Sheet UI to the user
     const { error: paymentError } = await presentPaymentSheet();
 
     if (paymentError) {
-      // Handle user cancellation (common case)
       if (paymentError.code === PaymentSheetError.Canceled) {
         throw new Error('Payment was cancelled by the user.');
       }
       
-      // Handle other payment errors (e.g., declined card)
-      console.error('Stripe Payment Error:', paymentError);
       throw new Error(paymentError.message || 'Payment failed.');
     }
 
-    // 4. Payment succeeded client-side - Finalize order on the backend
-    // We use the intentId from our backend's creation response, 
-    // but in a real-world scenario, you might also rely on the webhook.
-    // However, marking it paid here provides immediate feedback.
     return markOrderAsPaid(orderId, intentId);
   };
 
@@ -101,7 +87,6 @@ const CartScreen = ({ navigation }: Props) => {
       return;
     }
     
-    // PROFESSIONALLY: Ensure vendorId logic is robust (e.g., all items belong to one vendor)
     const vendorId = validCartItems[0].item.vendorId;
     const itemsPayload = validCartItems.map(ci => ({
       itemId: ci.item._id.toString(),
@@ -115,16 +100,13 @@ const CartScreen = ({ navigation }: Props) => {
     let orderIdToCleanup: string | null = null; 
 
     try {
-      // 1. Create the Order in PENDING status
       const orderCreationResponse = 
         await createOrder(payload) as ApiResponse<CreateOrderResponseData>;
       const orderId = orderCreationResponse.data._id;
-      orderIdToCleanup = orderId; // Save ID in case payment fails
+      orderIdToCleanup = orderId; 
       
-      // 2. Execute Payment Flow - This will block until the user pays or cancels
       await executePaymentFlow(orderId, totalPrice);
 
-      // 3. Finalize and Navigate (Only reached if payment and markOrderAsPaid succeed)
       clearCart();
       
       Alert.alert('Order Placed!', `Your order has been confirmed.`, [
@@ -140,14 +122,10 @@ const CartScreen = ({ navigation }: Props) => {
     } catch (error: any) {
       const errorMsg = error.message || 'An unknown error occurred.';
       
-      // PROFESSIONALLY: If order was created but payment failed/cancelled, 
-      // you should handle the cleanup (e.g., cancel the order on the backend).
       if (orderIdToCleanup) {
-        // Here you would call an API like: await cancelOrder(orderIdToCleanup);
-        console.warn(`Order ${orderIdToCleanup} created but payment failed. Needs cleanup.`);
+        console.warn(`Order ${orderIdToCleanup} created but payment failed/cancelled. Needs cleanup.`);
       }
 
-      // Provide user-friendly message
       const alertTitle = errorMsg.includes('cancelled') ? 'Payment Cancelled' : 'Payment Failed';
       Alert.alert(alertTitle, errorMsg);
     } finally {
@@ -162,65 +140,112 @@ const CartScreen = ({ navigation }: Props) => {
     ]);
   };
 
-  const renderItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.itemContainer}>
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemName}>{item.item.name}</Text>
-        <Text style={styles.itemPrice}>
-          ${(item.item.price * item.quantity).toFixed(2)}
-        </Text>
+  const renderItem = ({ item }: { item: CartItem }) => {
+    const itemImage = item.item.imageUrl;
+    
+    return (
+      <View style={styles.itemContainer}>
+        {itemImage ? (
+          <Image source={{ uri: itemImage }} style={styles.itemImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.itemImagePlaceholder}>
+            <Icon name="image-outline" size={28} color={COLORS.gray} />
+          </View>
+        )}
+        
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemName} numberOfLines={2}>{item.item.name}</Text>
+          <Text style={styles.itemVendor}>Vendor ID: {item.item.vendorId.slice(-4)}</Text>
+        </View>
+        
+        <View style={styles.quantityPriceArea}>
+          <Text style={styles.itemTotalPrice}>${(item.item.price * item.quantity).toFixed(2)}</Text>
+          
+          <View style={styles.quantitySelector}>
+            <TouchableOpacity
+              onPress={() => updateQuantity(item.item._id, item.quantity - 1)}
+              style={styles.quantityButton}
+              disabled={isPlacingOrder || item.quantity <= 1}
+            >
+              <Icon name="remove-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.quantityText}>{item.quantity}</Text>
+            <TouchableOpacity
+              onPress={() => updateQuantity(item.item._id, item.quantity + 1)}
+              style={styles.quantityButton}
+              disabled={isPlacingOrder}
+            >
+              <Icon name="add-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-      <View style={styles.quantitySelector}>
-        <TouchableOpacity
-          onPress={() => updateQuantity(item.item._id, item.quantity - 1)}
-          style={styles.quantityButton}
-          disabled={isPlacingOrder || item.quantity <= 1}
-        >
-          <Icon name="remove-outline" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-        <Text style={styles.quantityText}>{item.quantity}</Text>
-        <TouchableOpacity
-          onPress={() => updateQuantity(item.item._id, item.quantity + 1)}
-          style={styles.quantityButton}
-          disabled={isPlacingOrder}
-        >
-          <Icon name="add-outline" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Checkout</Text>
-        {cartItems.length > 0 && (
-          <TouchableOpacity
-            onPress={handleClearCart}
-            style={styles.clearButton}
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      
+      <View style={styles.primaryHeader}>
+        <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
             disabled={isPlacingOrder}
-          >
-            <Icon name="trash-outline" size={24} color={COLORS.danger} />
-          </TouchableOpacity>
-        )}
+        >
+            <Icon name="arrow-back-outline" size={24} color={COLORS.light} />
+        </TouchableOpacity>
+        
+        <Text style={styles.headerTitle}>Your Cart</Text>
       </View>
-      <FlatList
-        data={cartItems}
-        renderItem={renderItem}
-        keyExtractor={item => item.item._id}
-        contentContainerStyle={
-          cartItems.length === 0 ? styles.listEmptyContent : null
-        }
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>Your cart is empty.</Text>
-        }
-      />
+
+      <View style={styles.contentArea}>
+        <View style={styles.headerInner}>
+            <Text style={styles.title}>Review Order</Text>
+            {cartItems.length > 0 && (
+            <TouchableOpacity
+                onPress={handleClearCart}
+                style={styles.clearButton}
+                disabled={isPlacingOrder}
+            >
+                <Icon name="trash-outline" size={24} color={COLORS.danger} />
+            </TouchableOpacity>
+            )}
+        </View>
+
+        <FlatList
+            data={cartItems}
+            renderItem={renderItem}
+            keyExtractor={item => item.item._id}
+            contentContainerStyle={
+            cartItems.length === 0 ? styles.listEmptyContent : styles.flatListContent
+            }
+            ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Icon name="cart-outline" size={80} color={COLORS.gray} style={{ marginBottom: SIZES.padding }} />
+              <Text style={styles.emptyText}>Your cart is empty. Start adding items!</Text>
+            </View>
+            }
+            style={styles.flatList}
+        />
+      </View>
+
       {cartItems.length > 0 && (
         <View style={styles.footer}>
           <View style={styles.totalContainer}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>Subtotal</Text>
+            <Text style={styles.totalSubPrice}>${totalPrice.toFixed(2)}</Text>
           </View>
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalLabel}>Fees & Taxes</Text>
+            <Text style={styles.totalSubPrice}>$2.00</Text> 
+          </View>
+          <View style={styles.totalSeparator} />
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalLabelFinal}>Total Payable</Text>
+            <Text style={styles.totalPriceFinal}>${(totalPrice + 2.00).toFixed(2)}</Text>
+          </View>
+
           <TouchableOpacity
             style={[
               styles.checkoutButton,
@@ -234,74 +259,208 @@ const CartScreen = ({ navigation }: Props) => {
             {isPlacingOrder ? (
               <ActivityIndicator size="small" color={COLORS.light} />
             ) : (
-              <Text style={styles.checkoutButtonText}>Place Order & Pay</Text>
+              <Text style={styles.checkoutButtonText}>Proceed to Payment</Text>
             )}
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: {
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.lightGray || '#F0F0F0',
+  },
+  
+  // --- HEADER STYLES ---
+  primaryHeader: {
+    paddingTop: SIZES.padding * 2.5,
+    paddingBottom: SIZES.padding * 1.5,
+    paddingHorizontal: SIZES.padding,
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomLeftRadius: SIZES.radius * 3,
+    borderBottomRightRadius: SIZES.radius * 3,
+    elevation: 10,
+    shadowColor: COLORS.dark,
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  headerTitle: {
+    ...FONTS.h2,
+    color: COLORS.light,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: SIZES.padding,
+    top: SIZES.padding * 2.5,
+    zIndex: 10,
+  },
+
+  contentArea: {
+    flex: 1,
+    paddingHorizontal: SIZES.padding,
+    backgroundColor: COLORS.lightGray || '#F0F0F0',
+    overflow: 'visible', 
+  },
+
+  headerInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SIZES.padding,
-    marginTop:30,
+    paddingVertical: SIZES.padding,
+    marginBottom: SIZES.base,
   },
-  title: { ...FONTS.h1, color: COLORS.dark },
+  title: { ...FONTS.h2, color: COLORS.dark, fontWeight: '700' },
   clearButton: { padding: SIZES.base },
-  listEmptyContent: { flexGrow: 1, justifyContent: 'center' },
+  
+  // --- LIST STYLES ---
+  flatList: {
+      flex: 1,
+      marginTop: SIZES.base,
+      overflow: 'visible',
+  },
+  flatListContent: {
+    paddingBottom: SIZES.padding,
+    overflow: 'visible', 
+  },
+  emptyContainer: {
+    flexGrow: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    height: 300,
+  },
   emptyText: {
     textAlign: 'center',
     ...FONTS.body3,
     color: COLORS.gray,
+    fontWeight: '500',
   },
+  
+  // --- ITEM CARD STYLES (Fixed with Clean Border) ---
   itemContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SIZES.padding,
-    borderBottomWidth: 1,
-    borderColor: '#E0E0E0',
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius * 1.5,
+    marginBottom: SIZES.padding,
+    
+    // FIX: Removed shadow/elevation, added clean bottom border
+    borderWidth: 1,
+    borderColor: COLORS.lightGray, // Overall border for a clean card look
+    borderBottomWidth: 3, // Emphasis on the bottom for separation effect
+    borderBottomColor: COLORS.lightGray, // Darker color might be needed if lightGray is too close to white
+    
+    overflow: 'hidden', // Set to hidden to contain border/image if needed
   },
-  itemDetails: { flex: 1 },
-  itemName: { ...FONTS.h3, color: COLORS.dark },
-  itemPrice: { ...FONTS.body3, color: COLORS.gray, marginTop: 4 },
+  itemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: SIZES.radius,
+    marginRight: SIZES.padding,
+  },
+  itemImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.lightGray,
+    marginRight: SIZES.padding,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1, 
+  },
+  itemDetails: { flex: 1, marginRight: SIZES.base },
+  itemName: { ...FONTS.h3, color: COLORS.dark, fontWeight: '700' },
+  itemVendor: { ...FONTS.body4, color: COLORS.gray, marginTop: 2 },
+  
+  quantityPriceArea: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 60,
+  },
+  itemTotalPrice: { 
+    ...FONTS.h3, 
+    color: COLORS.dark, 
+    fontWeight: '900',
+    marginBottom: SIZES.base / 2,
+  },
+
+  // Quantity Selector
   quantitySelector: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.gray,
-    borderRadius: SIZES.radius,
+    borderColor: COLORS.lightGray,
+    borderRadius: SIZES.radius * 2,
+    overflow: 'hidden',
   },
-  quantityButton: { padding: 8 },
-  quantityText: { ...FONTS.body2, color: COLORS.dark, paddingHorizontal: 12 },
+  quantityButton: { 
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    backgroundColor: COLORS.white,
+  },
+  quantityText: { 
+    ...FONTS.body3, 
+    color: COLORS.dark, 
+    paddingHorizontal: 10,
+    fontWeight: 'bold',
+    backgroundColor: COLORS.lightGray,
+    paddingVertical: 4,
+  },
+  
   footer: {
-    padding: SIZES.padding,
-    borderTopWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: COLORS.light,
+    padding: SIZES.padding * 1.5,
+    paddingVertical: 50,
+    borderRadius:40,
+    paddingBottom: SIZES.padding * 5,
+    borderTopLeftRadius: SIZES.radius * 52,
+    borderTopRightRadius: SIZES.radius * 52,
+    backgroundColor: COLORS.white,
+    shadowColor: COLORS.dark,
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 10, 
   },
   totalContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SIZES.padding,
+    marginBottom: SIZES.base * 0.75,
   },
-  totalLabel: { ...FONTS.h3, color: COLORS.gray },
-  totalPrice: { ...FONTS.h2, color: COLORS.dark, fontWeight: 'bold' },
+  totalSeparator: {
+    height: 1,
+    backgroundColor: COLORS.lightGray,
+    marginVertical: SIZES.base * 1.5,
+  },
+  totalLabel: { ...FONTS.body3, color: COLORS.gray, fontWeight: '500' },
+  totalSubPrice: { ...FONTS.body3, color: COLORS.dark, fontWeight: '600' },
+
+  totalLabelFinal: { ...FONTS.h3, color: COLORS.dark, fontWeight: '800' },
+  totalPriceFinal: { ...FONTS.h3, color: COLORS.primary, fontWeight: '900' },
+
   checkoutButton: {
     backgroundColor: COLORS.primary,
-    padding: 16,
-    marginBottom:80,
-    borderRadius: SIZES.radius,
+    padding: 18,
+    marginTop: SIZES.padding * 1.5,
+    borderRadius: SIZES.radius * 3,
     alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 10,
   },
   checkoutButtonDisabled: {
     backgroundColor: COLORS.gray,
+    shadowColor: COLORS.dark,
+    shadowOpacity: 0.1,
   },
   checkoutButtonText: { ...FONTS.h3, color: COLORS.light, fontWeight: 'bold' },
 });

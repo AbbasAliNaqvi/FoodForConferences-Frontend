@@ -52,7 +52,7 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <LinearGradient colors={[COLORS.primary, COLORS.primary]} style={styles.header}>
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={styles.headerTitle}>Profile</Text>
       </LinearGradient>
 
       {/* Animated Content */}
@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...FONTS.h1,
     color: COLORS.light,
+    fontWeight:700,
   },
   content: {
     flex: 1,

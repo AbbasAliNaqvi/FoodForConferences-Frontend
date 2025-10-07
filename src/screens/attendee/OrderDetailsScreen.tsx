@@ -1,16 +1,22 @@
-// /screens/attendee/OrderDetailsScreen.tsx
-
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, StatusBar, Dimensions } from 'react-native';
+import { 
+    View, 
+    Text, 
+    StyleSheet, 
+    ActivityIndicator, 
+    ScrollView, 
+    StatusBar, 
+    Dimensions,
+    TouchableOpacity,
+    Image,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
-// REMOVED: import QRCode from 'react-native-qrcode-svg'; 
 import API from '../../api';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 // --- Type Definitions (Ensuring strict structure) ---
-
 interface OrderItem {
   menuItemId: string;
   quantity: number; 
@@ -21,7 +27,7 @@ interface OrderItem {
 
 interface OrderWithToken {
   _id: string;
-  qrToken: string; // Critical information, will be displayed as text
+  qrToken: string;
   total: number;
   orderStatus: string;
   items: OrderItem[];
@@ -36,7 +42,13 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetails'>;
 
-// Helper to determine status color (copied for consistency)
+// --- Helper Functions ---
+
+const generateQrCodeUrl = (token: string, size: number = 250) => {
+    const encodedToken = encodeURIComponent(token);
+    return `https://quickchart.io/qr?text=${encodedToken}&size=${size}`;
+};
+
 const getStatusProps = (status: string) => {
   const normalizedStatus = status ? status.toLowerCase() : 'queued';
   
@@ -58,8 +70,9 @@ const getStatusProps = (status: string) => {
 };
 
 
-const OrderDetailsScreen = ({ route }: Props) => {
+const OrderDetailsScreen = ({ route, navigation }: Props) => {
   const { orderId } = route.params;
+  const qrSize = Math.min(Dimensions.get('window').width * 0.6, 250);
 
   const { data: orderResponse, isLoading, isError, error } = useQuery({
     queryKey: ['order', orderId],
@@ -70,7 +83,6 @@ const OrderDetailsScreen = ({ route }: Props) => {
   
   const order = orderResponse;
 
-  // --- Loading State ---
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -80,11 +92,9 @@ const OrderDetailsScreen = ({ route }: Props) => {
     );
   }
 
-  // --- Error/Not Found State ---
   if (isError || !order || !order.qrToken || !order.items?.length) {
     console.error('OrderDetailsScreen: Order data missing or fetch failed.', error);
     return (
-      // Using a standard View instead of SafeAreaView to avoid dependency error
       <View style={styles.centerContainer}>
          <StatusBar barStyle="dark-content" backgroundColor={COLORS.lightGray} />
         <Icon name="sad-outline" size={60} color={COLORS.gray} style={{ marginBottom: SIZES.padding }} />
@@ -99,16 +109,31 @@ const OrderDetailsScreen = ({ route }: Props) => {
   const { color: statusColor, bgColor: statusBgColor } = getStatusProps(order.orderStatus);
   const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
+  const qrCodeUri = generateQrCodeUrl(order.qrToken, qrSize);
+
   // --- Main Content ---
   return (
-    // Using a standard View instead of SafeAreaView to avoid dependency error
     <View style={styles.container}> 
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.lightGray} />
+      {/* Set status bar to light-content for the dark primary header */}
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+
+      {/* ENHANCEMENT: Primary Color Header like ProfileScreen */}
+      <View style={styles.primaryHeader}>
+        {/* Back Button */}
+        <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+        >
+            <Icon name="arrow-back-outline" size={24} color={COLORS.light} />
+        </TouchableOpacity>
+        
+        <Text style={styles.headerTitle}>Order Details</Text>
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        {/* Header/Title */}
-        <View style={styles.header}>
+        {/* Header/Title (Internal to ScrollView) */}
+        <View style={styles.internalHeader}>
             <Text style={styles.title}>Order Confirmed 🎉</Text>
             <Text style={styles.orderIdText}>Order ID: <Text style={styles.orderIdHighlight}>#{order._id.slice(-6).toUpperCase()}</Text></Text>
             <View style={[styles.statusPillContainer, { borderColor: statusColor, backgroundColor: statusBgColor }]}>
@@ -119,32 +144,27 @@ const OrderDetailsScreen = ({ route }: Props) => {
         </View>
 
 
-        {/* QR Code Section - Replaced with Placeholder/Token Display */}
+        {/* QR Code Section */}
         <View style={styles.qrCard}>
-          <Text style={styles.qrLabel}>PICKUP TOKEN</Text>
+          <Text style={styles.qrLabel}>SCAN FOR PICKUP</Text>
           
-          <View style={styles.qrCodeWrapperFallback}>
-            <Icon 
-                name="barcode-outline" 
-                size={70} 
-                color={COLORS.gray} 
-                style={{ marginBottom: SIZES.base }}
+          <View style={[styles.qrCodeWrapper, { width: qrSize + 20, height: qrSize + 20 }]}>
+            <Image
+                source={{ uri: qrCodeUri }}
+                style={[styles.qrImage, { width: qrSize, height: qrSize }]}
+                resizeMode="contain"
             />
-            {/* Display the QR Token in a prominent, monospace font */}
-            <Text style={styles.qrTokenText}>
-                {order.qrToken.toUpperCase()}
-            </Text>
-            <Text style={styles.qrCodeFallbackText}>
-                (QR Code disabled: Use this token for pickup)
-            </Text>
           </View>
+          
+          <Text style={styles.qrCodeFallbackText}>
+              Token: {order.qrToken.toUpperCase()}
+          </Text>
         </View>
 
         {/* Summary/Item List */}
         <View style={styles.summarySection}>
           <Text style={styles.summaryTitle}>Order Items</Text>
           {order.items.map((item, index) => (
-            // Using index as fallback key only if menuItemId is not unique/stable
             <View key={item.menuItemId + index} style={styles.itemRow}> 
               <Text style={styles.itemQuantity}>{item.qty}x</Text> 
               <Text style={styles.itemName} numberOfLines={1}>{item.name || `Item ID: ${item.menuItemId.slice(-8)}`}</Text> 
@@ -169,7 +189,7 @@ const OrderDetailsScreen = ({ route }: Props) => {
   );
 };
 
-// --- Stylesheet (Refined) ---
+// --- Stylesheet (Updated for Header and layout) ---
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
@@ -180,7 +200,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center', 
     backgroundColor: COLORS.lightGray || '#F0F0F0',
-    paddingTop: 50, // Manual safe area compensation
+    paddingTop: 50, 
   },
   scrollContent: { 
     padding: SIZES.padding, 
@@ -204,11 +224,36 @@ const styles = StyleSheet.create({
     maxWidth: '80%' 
   }, 
   
-  header: {
+  primaryHeader: {
+    paddingTop: SIZES.padding * 2.5, // Space for status bar
+    paddingBottom: SIZES.padding,
+    paddingHorizontal: SIZES.padding,
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomLeftRadius: SIZES.radius * 2,
+    borderBottomRightRadius: SIZES.radius * 2,
+    elevation: 8,
+  },
+  headerTitle: {
+    ...FONTS.h2,
+    color: COLORS.light,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: SIZES.padding,
+    top: SIZES.padding * 2.5,
+    zIndex: 10,
+  },
+  
+  internalHeader: {
     width: '100%',
     alignItems: 'center',
     marginBottom: SIZES.padding * 2,
-    marginTop: SIZES.padding,
+    marginTop: SIZES.padding, 
   },
   title: { 
     ...FONTS.h1, 
@@ -263,25 +308,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' 
   },
   
-  // New Fallback QR/Token Display Styles
-  qrCodeWrapperFallback: {
+  // QR Wrapper Style for the Image
+  qrCodeWrapper: {
     marginVertical: SIZES.padding,
-    borderWidth: 2,
-    borderColor: COLORS.lightGray,
+    borderWidth: 1,
+    borderColor: '#EFEFEF', 
     borderRadius: SIZES.radius,
-    padding: SIZES.padding * 2,
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 250,
   },
-  qrTokenText: {
-    ...FONTS.h2,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-    textAlign: 'center',
-    letterSpacing: 1.5,
-    marginBottom: SIZES.base,
+  // QR Image Style (must have explicit width/height)
+  qrImage: {
+    // Dimensions are set inline
   },
+  
+  // Fallback text
   qrCodeFallbackText: {
     ...FONTS.body4,
     color: COLORS.gray,
