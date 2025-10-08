@@ -82,7 +82,7 @@ const EventCard = ({ event, vendors, onPress }: Props) => {
           <Icon name="location" size={16} color={COLORS.dark} />
 
           <Text style={styles.locationText}>
-            {event.venue.name.split(',')[0]}
+            {event.venue?.name?.split(',')[0] || 'Venue To Be Announced'}
           </Text>
         </View>
       </View>

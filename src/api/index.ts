@@ -98,7 +98,7 @@ export const verifyQr = (orderId: string, token: string): Promise<AxiosResponse<
 
 // --- PAYMENT APIs ---
 // Explicitly typing the Payment Intent response
-export const createPaymentIntent = (amount: number, currency = 'usd'): Promise<AxiosResponse<ApiResponse<PaymentIntentResponse>>> => {
+export const createPaymentIntent = (amount: number, currency = 'inr'): Promise<AxiosResponse<ApiResponse<PaymentIntentResponse>>> => {
   logApiCall('/payments/create-intent');
   return API.post('/payments/create-intent', { amount, currency });
 };

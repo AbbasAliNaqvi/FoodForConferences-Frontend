@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -8,113 +8,228 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  ScrollView
-} from 'react-native';
-import { register } from '../../api';
-import { COLORS, FONTS, SIZES } from '../../constants/theme';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Picker } from '@react-native-picker/picker'; 
-
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native"
+import { register } from "../../api"
+import { COLORS, FONTS, SIZES } from "../../constants/theme"
+import type { NativeStackScreenProps } from "@react-navigation/native-stack"
+import { Picker } from "@react-native-picker/picker"
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  interpolate,
+  interpolateColor,
+} from "react-native-reanimated"
 
 type AuthStackParamList = {
-    Login: undefined;
-    Register: undefined;
-};
-type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+  Login: undefined
+  Register: undefined
+}
+type Props = NativeStackScreenProps<AuthStackParamList, "Register">
 
 const RegisterScreen = ({ navigation }: Props) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('attendee'); // Default role
-  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState("")
+  const [nameFocused, setNameFocused] = useState(false) // focus state
+  const [email, setEmail] = useState("")
+  const [emailFocused, setEmailFocused] = useState(false) //
+  const [password, setPassword] = useState("")
+  const [passwordFocused, setPasswordFocused] = useState(false) //
+  const [showPassword, setShowPassword] = useState(false) //
+  const [role, setRole] = useState("attendee")
+  const [isLoading, setIsLoading] = useState(false)
+
+  const mount = useSharedValue(0)
+  const nameFocusSV = useSharedValue(0)
+  const emailFocusSV = useSharedValue(0)
+  const passwordFocusSV = useSharedValue(0)
+  const btnScale = useSharedValue(1)
+
+  useEffect(() => {
+    mount.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) })
+  }, [])
+
+  useEffect(() => {
+    nameFocusSV.value = withTiming(nameFocused ? 1 : 0, { duration: 180 })
+  }, [nameFocused])
+
+  useEffect(() => {
+    emailFocusSV.value = withTiming(emailFocused ? 1 : 0, { duration: 180 })
+  }, [emailFocused])
+
+  useEffect(() => {
+    passwordFocusSV.value = withTiming(passwordFocused ? 1 : 0, { duration: 180 })
+  }, [passwordFocused])
+
+  const brandStyle = useAnimatedStyle(() => ({
+    opacity: mount.value,
+    transform: [{ translateY: interpolate(mount.value, [0, 1], [12, 0]) }],
+  }))
+
+  const brandUnderline = useAnimatedStyle(() => ({
+    width: `${mount.value * 100}%`,
+    opacity: mount.value,
+  }))
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: mount.value,
+    transform: [{ translateY: interpolate(mount.value, [0, 1], [18, 0]) }],
+  }))
+
+  const nameInputAnimated = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(nameFocusSV.value, [0, 1], ["#E0E0E0", COLORS.primary]),
+  }))
+
+  const emailInputAnimated = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(emailFocusSV.value, [0, 1], ["#E0E0E0", COLORS.primary]),
+  }))
+
+  const passwordInputAnimated = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(passwordFocusSV.value, [0, 1], ["#E0E0E0", COLORS.primary]),
+  }))
+
+  const btnAnimated = useAnimatedStyle(() => ({
+    transform: [{ scale: btnScale.value }],
+  }))
 
   const handleRegister = async () => {
     if (!name || !email || !password || !role) {
-      Alert.alert('Error', 'Please fill in all fields.');
-      return;
+      Alert.alert("Error", "Please fill in all fields.")
+      return
     }
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      await register(name.trim(), email.trim(), password.trim(), role);
-      Alert.alert(
-        'Success', 
-        'Your account has been created. Please log in.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
-      );
+      await register(name.trim(), email.trim(), password.trim(), role)
+      Alert.alert("Success", "Your account has been created. Please log in.", [
+        { text: "OK", onPress: () => navigation.navigate("Login") },
+      ])
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.response?.data?.message || 'An unexpected error occurred.');
+      Alert.alert("Registration Failed", error.response?.data?.message || "An unexpected error occurred.")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Start your journey with us</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollView} keyboardShouldPersistTaps="handled">
+          <Animated.View accessible accessibilityRole="header" style={[styles.brandHeader, brandStyle]}>
+            <Text style={styles.brand}>FoodForConferences</Text>
+            <Animated.View style={[styles.brandUnderline, brandUnderline]} />
+            <Text style={styles.tagline}>Food Logistics and Automation Engine</Text>
+          </Animated.View>
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Full Name"
-            placeholderTextColor={COLORS.gray}
-            value={name}
-            onChangeText={setName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email Address"
-            placeholderTextColor={COLORS.gray}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={COLORS.gray}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          
-          <Text style={styles.pickerLabel}>I am a...</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={role}
-              onValueChange={(itemValue) => setRole(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="Conference Attendee" value="attendee" />
-              <Picker.Item label="Food Vendor" value="vendor" />
-              <Picker.Item label="Event Organizer" value="organizer" />
-            </Picker>
-          </View>
-        </View>
+          <Animated.View style={[styles.card, cardStyle]} accessibilityLabel="Sign up form">
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Start your journey with us</Text>
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color={COLORS.light} />
-          ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-          )}
-        </TouchableOpacity>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Full name</Text>
+              <Animated.View style={nameInputAnimated}>
+                <TextInput
+                  style={[styles.input, nameFocused && styles.inputFocused]}
+                  placeholder="Jane Doe"
+                  placeholderTextColor={COLORS.gray}
+                  value={name}
+                  onChangeText={setName}
+                  onFocus={() => setNameFocused(true)}
+                  onBlur={() => setNameFocused(false)}
+                  accessibilityLabel="Full name"
+                  returnKeyType="next"
+                />
+              </Animated.View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={[styles.footerText, styles.linkText]}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+              <Text style={styles.inputLabel}>Email address</Text>
+              <Animated.View style={emailInputAnimated}>
+                <TextInput
+                  style={[styles.input, emailFocused && styles.inputFocused]}
+                  placeholder="you@company.com"
+                  placeholderTextColor={COLORS.gray}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                  accessibilityLabel="Email address"
+                  returnKeyType="next"
+                />
+              </Animated.View>
+
+              <Text style={styles.inputLabel}>Password</Text>
+              <View style={styles.inputWrapper}>
+                <Animated.View style={passwordInputAnimated}>
+                  <TextInput
+                    style={[styles.input, styles.inputWithRightPadding, passwordFocused && styles.inputFocused]}
+                    placeholder="Create a strong password"
+                    placeholderTextColor={COLORS.gray}
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                    accessibilityLabel="Password"
+                    returnKeyType="done"
+                  />
+                </Animated.View>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  onPress={() => setShowPassword((v) => !v)}
+                  style={styles.inputToggle}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.toggleText}>{showPassword ? "Hide" : "Show"}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.pickerLabel}>I am a…</Text>
+              <View style={styles.pickerContainer} accessibilityLabel="Choose your role">
+                <Picker selectedValue={role} onValueChange={(itemValue) => setRole(itemValue)} style={styles.picker}>
+                  <Picker.Item label="Conference Attendee" value="attendee" />
+                  <Picker.Item label="Food Vendor" value="vendor" />
+                  <Picker.Item label="Event Organizer" value="organizer" />
+                </Picker>
+              </View>
+
+              <Text style={styles.helpText}>Choose the role that best describes your participation.</Text>
+            </View>
+
+            <Animated.View style={btnAnimated}>
+              <TouchableOpacity
+                style={[styles.button, isLoading && styles.buttonDisabled]}
+                onPress={handleRegister}
+                disabled={isLoading}
+                onPressIn={() => (btnScale.value = withTiming(0.98, { duration: 90 }))}
+                onPressOut={() => (btnScale.value = withTiming(1, { duration: 90 }))}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading }}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={COLORS.light} />
+                ) : (
+                  <Text style={styles.buttonText}>Sign Up</Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                <Text style={[styles.footerText, styles.linkText]}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-};
+  )
+}
 
-// Re-using most styles from LoginScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -122,23 +237,60 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: SIZES.padding,
+  },
+  brandHeader: {
+    alignItems: "center",
+    marginBottom: SIZES.padding * 1.5,
+  },
+  brand: {
+    ...FONTS.h2,
+    color: COLORS.dark,
+    letterSpacing: 0.5,
+  },
+  brandUnderline: {
+    marginTop: 6,
+    height: 2,
+    alignSelf: "stretch",
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+  tagline: {
+    ...FONTS.body4,
+    color: COLORS.gray,
+    marginTop: SIZES.base * 0.75,
+  },
+  card: {
+    backgroundColor: COLORS.light,
+    borderRadius: SIZES.radius,
+    padding: SIZES.padding,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 2,
   },
   title: {
     ...FONTS.h1,
     color: COLORS.dark,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SIZES.base,
   },
   subtitle: {
     ...FONTS.body3,
     color: COLORS.gray,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SIZES.padding * 2,
   },
   inputContainer: {
     marginBottom: SIZES.padding,
+  },
+  inputLabel: {
+    ...FONTS.body4,
+    color: COLORS.gray,
+    marginBottom: SIZES.base * 0.5,
+    marginLeft: SIZES.base * 0.5,
   },
   input: {
     backgroundColor: COLORS.light,
@@ -149,7 +301,30 @@ const styles = StyleSheet.create({
     color: COLORS.dark,
     marginBottom: SIZES.padding * 0.75,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: "#E0E0E0",
+  },
+  inputFocused: {
+    borderColor: COLORS.primary,
+  },
+  inputWrapper: {
+    position: "relative",
+    marginBottom: SIZES.padding * 0.75,
+  },
+  inputWithRightPadding: {
+    paddingRight: SIZES.padding * 3,
+  },
+  inputToggle: {
+    position: "absolute",
+    right: SIZES.padding * 0.5,
+    top: SIZES.padding * 0.5,
+    paddingHorizontal: SIZES.base,
+    paddingVertical: SIZES.base * 0.5,
+    borderRadius: SIZES.radius * 0.5,
+  },
+  toggleText: {
+    ...FONTS.body4,
+    color: COLORS.primary,
+    fontWeight: "600",
   },
   pickerLabel: {
     ...FONTS.body3,
@@ -158,11 +333,11 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.base,
   },
   pickerContainer: {
-      backgroundColor: COLORS.light,
-      borderRadius: SIZES.radius,
-      borderWidth: 1,
-      borderColor: '#E0E0E0',
-      justifyContent: 'center',
+    backgroundColor: COLORS.light,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    justifyContent: "center",
   },
   picker: {
     color: COLORS.dark,
@@ -171,20 +346,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     padding: SIZES.padding * 0.85,
     borderRadius: SIZES.radius,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: SIZES.base,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     ...FONTS.h3,
     color: COLORS.light,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: SIZES.padding,
-    paddingBottom: SIZES.padding
+    paddingBottom: SIZES.padding,
   },
   footerText: {
     ...FONTS.body4,
@@ -192,8 +370,14 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: COLORS.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
-});
+  helpText: {
+    ...FONTS.body4,
+    color: COLORS.gray,
+    marginTop: SIZES.base,
+    marginLeft: SIZES.base * 0.5,
+  },
+})
 
-export default RegisterScreen;
+export default RegisterScreen

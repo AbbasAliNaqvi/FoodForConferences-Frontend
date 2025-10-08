@@ -159,7 +159,7 @@ const CartScreen = ({ navigation }: Props) => {
         </View>
         
         <View style={styles.quantityPriceArea}>
-          <Text style={styles.itemTotalPrice}>${(item.item.price * item.quantity).toFixed(2)}</Text>
+          <Text style={styles.itemTotalPrice}>INR {(item.item.price * item.quantity).toFixed(2)}</Text>
           
           <View style={styles.quantitySelector}>
             <TouchableOpacity
@@ -234,16 +234,16 @@ const CartScreen = ({ navigation }: Props) => {
         <View style={styles.footer}>
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalSubPrice}>${totalPrice.toFixed(2)}</Text>
+            <Text style={styles.totalSubPrice}>INR {totalPrice.toFixed(2)}</Text>
           </View>
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Fees & Taxes</Text>
-            <Text style={styles.totalSubPrice}>$2.00</Text> 
+            <Text style={styles.totalSubPrice}>INR 2.00</Text> 
           </View>
           <View style={styles.totalSeparator} />
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabelFinal}>Total Payable</Text>
-            <Text style={styles.totalPriceFinal}>${(totalPrice + 2.00).toFixed(2)}</Text>
+            <Text style={styles.totalPriceFinal}>INR {(totalPrice + 2.00).toFixed(2)}</Text>
           </View>
 
           <TouchableOpacity
