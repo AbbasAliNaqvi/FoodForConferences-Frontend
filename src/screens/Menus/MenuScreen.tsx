@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, Text, ActivityIndicator, StyleSheet, Button, Alert } from 'react-native';
-import { fetchMenusByEvent, createOrder } from '../../api'; // Assuming these functions are correctly set up
-import Card from '../../components/Card'; // Assuming the Card component is available
+import { fetchMenusByEvent, createOrder } from '../../api'; 
+import Card from '../../components/Card'; 
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 
@@ -9,7 +9,7 @@ interface MenuItem {
   _id: string;
   name: string;
   price: number;
-  vendorId?: string; // Added vendorId
+  vendorId?: string; 
   inventory?: { total?: number; sold?: number };
 }
 
@@ -17,7 +17,7 @@ interface Menu {
   _id: string;
   title: string;
   items: MenuItem[];
-  vendorId?: string; // Added vendorId
+  vendorId?: string; 
 }
 
 interface Props {
@@ -61,7 +61,7 @@ const MenuScreen: React.FC<Props> = ({ navigation, route }) => {
           itemId: item._id.toString(),
           qty: 1,
           price: item.price,
-          vendorId: item.vendorId?.toString() || menu.vendorId?.toString(), // Use vendorId from item or menu
+          vendorId: item.vendorId?.toString() || menu.vendorId?.toString(), 
         }
       ],
     };
@@ -88,7 +88,7 @@ const MenuScreen: React.FC<Props> = ({ navigation, route }) => {
     <View style={styles.container}>
       <FlatList
         data={menus}
-        keyExtractor={(item) => item._id.toString()} // Ensure keyExtractor is working with string IDs
+        keyExtractor={(item) => item._id.toString()} 
         renderItem={({ item }) => (
           <Card title={item.title}>
             <Text>Items: {item.items.map(i => i.name).join(', ')}</Text>

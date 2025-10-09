@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import AuthStack from './AuthStack';
-import AttendeeTabs from './AttendeeTabs'; 
+import AttendeeTabs from './AttendeeTabs';
 import VendorTabs from './VendorTabs';
 // import OrganizerTabs from './OrganizerTabs';
 import { ActivityIndicator, View } from 'react-native';
@@ -39,7 +39,11 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {token && role ? renderAppStack() : <Stack.Screen name="Auth" component={AuthStack} />}
+        {token && role ? (
+          renderAppStack()
+        ) : (
+          <Stack.Screen name="Auth" component={AuthStack} />
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
