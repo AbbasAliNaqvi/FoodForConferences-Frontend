@@ -2,9 +2,7 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// Assuming 'OrdersScreen' is the list component
 import OrdersScreen from '../screens/attendee/OrdersScreen'; 
-// Assuming 'OrderDetailsScreen' is the details component you implemented
 import OrderDetailsScreen from '../screens/attendee/OrderDetailsScreen'; 
 import OrderQRScreen from '../screens/attendee/OrderQRScreen';
 const Stack = createNativeStackNavigator();

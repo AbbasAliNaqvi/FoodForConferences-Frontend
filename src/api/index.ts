@@ -1,8 +1,6 @@
-// /api/index.ts (FINAL CORRECTED VERSION)
 
 import axios, { AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Import all necessary types for explicit typing
 import { 
   OrderPayload, 
   Order, 
@@ -14,14 +12,13 @@ import {
   Vendor 
 } from '../types'; 
 
-// Helper function to log API calls cleanly
 const logApiCall = (endpoint: string) => {
   console.log(`API ===>>> ${endpoint} Fetched`);
 };
 
 // Backend ka base URL
 const API = axios.create({
-  baseURL: 'http://192.168.1.7:5050/api',
+  baseURL: 'http://192.168.1.6:5050/api',
   timeout: 10000,
 });
 
